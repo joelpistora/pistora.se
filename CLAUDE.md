@@ -63,8 +63,10 @@ frontend (App Router, React 19, TS, Tailwind v4) sits in `apps/web`, builds
 clean. Next: decide the backend framework and scaffold `apps/api`.
 
 **Known issues / follow-ups:**
-- `next@15.4.5` has a critical CVE (CVE-2025-66478) — bump to a patched
-  15.4.x
+- Next.js on `15.5.25` (critical React-flight RCE cleared). `npm audit`
+  still shows 3 items — `sharp` libvips CVEs and Next's bundled `postcss`
+  — that only a major bump to Next 16 resolves. Do that as its own
+  deliberate upgrade.
 - `apps/web/src/app/layout.tsx` loads the Geist fonts but never applies
   them to `<body>` (unused-var warnings)
 - `apps/web/src/app/styles/globals.css` mixes Tailwind v4 (`@import
