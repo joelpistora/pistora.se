@@ -42,7 +42,9 @@ build locally first, expose to the internet in a later phase.
 root run the `web` workspace.
 
 **Server OS:** WSL2 on the Windows 11 machine. Development and the
-home backend both run here.
+home backend both run here. The repo lives on the WSL2 native filesystem
+(`~/code/pistora.se`), **not** `/mnt/c/...` — 9p/DrvFs makes npm/build
+I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 
 ## Roadmap / phases
 
@@ -71,8 +73,6 @@ clean. Next: decide the backend framework and scaffold `apps/api`.
   them to `<body>` (unused-var warnings)
 - `apps/web/src/app/styles/globals.css` mixes Tailwind v4 (`@import
   "tailwindcss"`) with legacy v3 directives (`@tailwind base` etc.)
-- Repo lives on the Windows filesystem (`/mnt/c/...`); `npm install` and
-  builds are slow from WSL2 — consider moving into the WSL2 filesystem
 
 ## Background on the developer (relevant to how we work together)
 
