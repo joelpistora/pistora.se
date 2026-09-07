@@ -35,9 +35,11 @@ static build on pistora.se talking to the home backend via e.g.
 **Remote access (outside the home network):** Nice to have, not critical →
 build locally first, expose to the internet in a later phase.
 
-**Repo layout:** Monorepo. `apps/web` = Next.js frontend, `apps/api` =
-Node.js backend, `packages/shared` = TypeScript types shared by both
-(added when first needed). Root `package.json` with workspaces.
+**Repo layout:** Monorepo, npm workspaces. `apps/web` = Next.js frontend
+(live). `apps/api` = Node.js backend (not scaffolded yet). `packages/shared`
+= TypeScript types shared by both (added when first needed). Root
+`package.json` holds proxy scripts — `npm run dev`/`build`/`lint` from the
+root run the `web` workspace.
 
 **Server OS:** WSL2 on the Windows 11 machine. Development and the
 home backend both run here.
@@ -56,9 +58,19 @@ home backend both run here.
       security, polish
 
 **Where we are right now:** Phase 0. Repo connected to GitHub
-(`joelpistora/pistora.se`, `main` branch). Frontend scaffold exists
-(Next.js 15, App Router, React 19, TS, Tailwind v4). Next: restructure
-into the monorepo layout, then stand up `apps/api`.
+(`joelpistora/pistora.se`, `main`). Monorepo layout is live — the Next.js 15
+frontend (App Router, React 19, TS, Tailwind v4) sits in `apps/web`, builds
+clean. Next: decide the backend framework and scaffold `apps/api`.
+
+**Known issues / follow-ups:**
+- `next@15.4.5` has a critical CVE (CVE-2025-66478) — bump to a patched
+  15.4.x
+- `apps/web/src/app/layout.tsx` loads the Geist fonts but never applies
+  them to `<body>` (unused-var warnings)
+- `apps/web/src/app/styles/globals.css` mixes Tailwind v4 (`@import
+  "tailwindcss"`) with legacy v3 directives (`@tailwind base` etc.)
+- Repo lives on the Windows filesystem (`/mnt/c/...`); `npm install` and
+  builds are slow from WSL2 — consider moving into the WSL2 filesystem
 
 ## Background on the developer (relevant to how we work together)
 
@@ -85,3 +97,4 @@ into the monorepo layout, then stand up `apps/api`.
 - 2026-09-07: Server OS = WSL2 on the Windows 11 machine (same box for dev and home backend)
 - 2026-09-07: Backend framework decision deferred until `apps/api` work begins
 - 2026-09-07: Re-ordered the storage drive from Amazon; not yet on hand
+- 2026-09-07: Frontend moved into `apps/web`; root npm-workspaces manifest added; single root lockfile; build verified green
