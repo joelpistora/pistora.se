@@ -35,6 +35,13 @@ static build on pistora.se talking to the home backend via e.g.
 **Remote access (outside the home network):** Nice to have, not critical →
 build locally first, expose to the internet in a later phase.
 
+**Repo layout:** Monorepo. `apps/web` = Next.js frontend, `apps/api` =
+Node.js backend, `packages/shared` = TypeScript types shared by both
+(added when first needed). Root `package.json` with workspaces.
+
+**Server OS:** WSL2 on the Windows 11 machine. Development and the
+home backend both run here.
+
 ## Roadmap / phases
 
 - [ ] **Phase 0 – Foundations & tooling:** set up the server machine, repo,
@@ -48,8 +55,10 @@ build locally first, expose to the internet in a later phase.
 - [ ] **Phase 4 – Extras:** sync with iCloud/Google, authentication/
       security, polish
 
-**Where we are right now:** Just finished big-picture planning, ready to
-dive into Phase 0.
+**Where we are right now:** Phase 0. Repo connected to GitHub
+(`joelpistora/pistora.se`, `main` branch). Frontend scaffold exists
+(Next.js 15, App Router, React 19, TS, Tailwind v4). Next: restructure
+into the monorepo layout, then stand up `apps/api`.
 
 ## Background on the developer (relevant to how we work together)
 
@@ -61,12 +70,18 @@ dive into Phase 0.
 
 ## Open questions / to decide later
 
-- Which OS should the server machine run (stay on Windows, or Linux/WSL)?
-- Which backend framework (e.g. Express/Fastify)?
+- Which backend framework (e.g. Express/Fastify)? — deferred until we
+  start `apps/api`
 - Authentication/security before exposing to the internet
-- Exact way the SSD gets mounted/shared with the backend
+- How the SSD gets formatted and mounted into WSL2 (NTFS vs ext4 vs
+  exFAT) — decide when the drive arrives
 
 ## Decision log
 
 - 2026-09-07: High-level architecture and phases established as above
 - 2026-09-07: Purchased WD Elements 5TB portable external HDD (USB 3.2 Gen 1, Windows-formatted, ~1450 SEK) as the storage drive
+- 2026-09-07: Repo connected to GitHub remote `joelpistora/pistora.se`; consolidated two divergent scaffolds onto `main`, dropped stale `master`
+- 2026-09-07: Monorepo layout chosen — `apps/web`, `apps/api`, `packages/shared`, npm workspaces
+- 2026-09-07: Server OS = WSL2 on the Windows 11 machine (same box for dev and home backend)
+- 2026-09-07: Backend framework decision deferred until `apps/api` work begins
+- 2026-09-07: Re-ordered the storage drive from Amazon; not yet on hand
