@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pistora
 
-## Getting Started
+A custom web app + home server tied to the domain **pistora.se**. A static
+frontend (hosted on pistora.se) talks to a Node.js backend running at home,
+which serves files from an attached multi-TB drive — a self-hosted
+alternative to iCloud/Google Drive.
 
-First, run the development server:
+Long-term hobby project. See [CLAUDE.md](CLAUDE.md) for the full status,
+roadmap, and decision log.
+
+## Repo layout
+
+Monorepo, npm workspaces, one root lockfile.
+
+| Path | What |
+|---|---|
+| `apps/web` | Next.js 15 frontend (App Router, React 19, TypeScript, Tailwind v4) |
+| `apps/api` | Fastify 5 backend (TypeScript, ESM) — currently just `GET /health` |
+| `packages/shared` | Shared TypeScript types (planned, not yet created) |
+
+## Prerequisites
+
+- Node.js 24+
+- npm 10+
+
+## Getting started
+
+```bash
+npm install
+```
+
+Run the frontend (http://localhost:3000):
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run the backend (http://localhost:3001), with auto-restart on save:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev:api
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+curl localhost:3001/health   # -> {"status":"ok"}
+```
 
-## Learn More
+## Commands
 
-To learn more about Next.js, take a look at the following resources:
+All from the repo root.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | Does |
+|---|---|
+| `npm run dev` | Frontend dev server |
+| `npm run build` | Frontend production build |
+| `npm run start` | Frontend production server |
+| `npm run lint` | Lint the frontend |
+| `npm run dev:api` | Backend dev server (tsx watch) |
+| `npm run build:api` | Compile the backend (`tsc` → `apps/api/dist/`) |
+| `npm run start:api` | Run the compiled backend |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Target a single workspace directly with `npm run <script> --workspace web`
+(or `api`). The API port can be overridden with the `PORT` env var.
 
-## Deploy on Vercel
+## Deployment (target)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The `apps/web` build is served statically from pistora.se. `apps/api` runs on
+a home machine (WSL2 on Windows 11) and is reached from the frontend via
+`api.pistora.se`, bridged by a tunnel rather than port forwarding. The two
+deploy independently.

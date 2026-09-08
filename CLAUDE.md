@@ -1,8 +1,66 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Pistora – Project Overview & Status
 
 > This document is the living source of truth for the project. Update it
 > whenever we make a decision or wrap up a phase, so work can be picked back
 > up at any time without losing context.
+
+## Commands
+
+Run from the repo root (npm workspaces). `web` = frontend, `api` = backend.
+
+| Task | Command |
+|---|---|
+| Frontend dev server (`localhost:3000`) | `npm run dev` |
+| Frontend production build | `npm run build` |
+| Frontend production server | `npm run start` |
+| Lint frontend | `npm run lint` |
+| Backend dev server (`0.0.0.0:3001`, auto-restart) | `npm run dev:api` |
+| Backend build (`tsc` → `apps/api/dist/`) | `npm run build:api` |
+| Backend production server (`node dist/server.js`) | `npm run start:api` |
+| Install / refresh all workspace deps | `npm install` |
+
+- Target one workspace directly: `npm run <script> --workspace web` (or `api`).
+- Type-check the backend without emitting: `npx tsc --noEmit -p apps/api`.
+- Smoke-test the API: `curl localhost:3001/health` → `{"status":"ok"}`.
+- `PORT` env var overrides the API port.
+- **Tests:** no runner configured yet. When one is added, document how to run a
+  single test here.
+
+## Codebase structure
+
+Monorepo, npm workspaces, one root `package-lock.json` and `node_modules/`.
+Root `package.json` is a coordinator only (`private`, no deps) — its scripts
+forward to the workspaces.
+
+- **`apps/web`** — Next.js 15 App Router frontend (React 19, TS, Tailwind v4).
+  - `src/app/` — routes: `/` (`page.tsx`), `/projects`, `/contact`, plus
+    `error.tsx` and `not-found.tsx`.
+  - `src/app/layout.tsx` — root layout; `Navbar` + `Footer` wrap every page.
+  - `src/components/` — shared UI. `src/app/styles/globals.css` — global CSS.
+  - `@/*` path alias → `apps/web/src/*`.
+  - `next.config.ts` sets `outputFileTracingRoot` to the repo root so
+    production builds trace workspace files correctly.
+  - TS config: `noEmit` (Next compiles), `target ES2017`, `moduleResolution
+    bundler`.
+- **`apps/api`** — Fastify 5 backend (TypeScript, ESM, `"type": "module"`).
+  - `src/server.ts` — builds the Fastify instance (Pino `logger: true`),
+    registers routes, `listen()` on `0.0.0.0:${PORT||3001}`. Only `GET /health`
+    so far.
+  - Dev: `tsx watch` runs `.ts` directly. Prod: `tsc` emits `src/` → `dist/`,
+    run with plain `node`. `dist/` is git-ignored.
+  - TS config: `strict`, `target ES2023`, `module NodeNext`, emits to `dist/`.
+- **`packages/shared`** — planned, not yet created. Will hold TS types imported
+  by both apps once they exchange data; consumed as a workspace dependency
+  (`"shared": "*"`).
+
+**Runtime shape (target):** the static `apps/web` build is hosted on
+pistora.se and talks to `apps/api` running at home (WSL2) via `api.pistora.se`,
+bridged by a tunnel. Frontend and backend deploy separately and never share a
+process.
 
 ## What is this project?
 
@@ -35,13 +93,10 @@ static build on pistora.se talking to the home backend via e.g.
 **Remote access (outside the home network):** Nice to have, not critical →
 build locally first, expose to the internet in a later phase.
 
-**Repo layout:** Monorepo, npm workspaces. `apps/web` = Next.js frontend
-(live). `apps/api` = Fastify backend (scaffolded — `GET /health` only).
-`packages/shared` = TypeScript types shared by both (added when first
-needed). Root `package.json` holds proxy scripts: `npm run dev`/`build`/
-`lint` run `web`; `npm run dev:api`/`build:api`/`start:api` run `api`.
-API dev loop: `npm run dev:api` (tsx watch, auto-restart). API listens on
-`0.0.0.0:3001` (PORT env overrides).
+**Repo layout:** Monorepo, npm workspaces — chosen so the frontend, backend,
+and a future `packages/shared` (shared TS types) live in one repo with one
+lockfile. `packages/shared` is added only when the apps first exchange data.
+See `## Codebase structure` above for the current wiring.
 
 **Server OS:** WSL2 on the Windows 11 machine. Development and the
 home backend both run here. The repo lives on the WSL2 native filesystem
@@ -102,5 +157,5 @@ are (Phase 1 — storage) and how the SSD mounts into WSL2.
 - 2026-09-07: Backend framework decision deferred until `apps/api` work begins
 - 2026-09-07: Re-ordered the storage drive from Amazon; not yet on hand
 - 2026-09-07: Frontend moved into `apps/web`; root npm-workspaces manifest added; single root lockfile; build verified green
-- 2026-09-08: `apps/api` scaffolded — Fastify 5 + TypeScript (ESM, `tsx` dev runner, `tsc` build to `dist/`), `GET /health` route, port 3001. Root scripts `dev:api`/`build:api`/`start:api` added. `dist` gitignored.
 - 2026-09-07: Backend framework = **Fastify** (TypeScript). Chosen over Express 5 (TS is bolt-on, more boilerplate), NestJS (too heavy for a hobby file server), and Hono (edge-first, thinner for heavy file I/O). Fastify gives TS-native DX, built-in JSON Schema validation, first-class streaming + `@fastify/multipart` for the large-file upload/download that is the core requirement, and a plugin architecture worth having practiced. New job has no known/Node stack, so chosen on project merits.
+- 2026-09-08: `apps/api` scaffolded — Fastify 5 + TypeScript (ESM, `tsx` dev runner, `tsc` build to `dist/`), `GET /health` route, port 3001. Root scripts `dev:api`/`build:api`/`start:api` added. `dist` gitignored.
