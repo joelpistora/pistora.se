@@ -36,10 +36,12 @@ static build on pistora.se talking to the home backend via e.g.
 build locally first, expose to the internet in a later phase.
 
 **Repo layout:** Monorepo, npm workspaces. `apps/web` = Next.js frontend
-(live). `apps/api` = Node.js backend (not scaffolded yet). `packages/shared`
-= TypeScript types shared by both (added when first needed). Root
-`package.json` holds proxy scripts — `npm run dev`/`build`/`lint` from the
-root run the `web` workspace.
+(live). `apps/api` = Fastify backend (scaffolded — `GET /health` only).
+`packages/shared` = TypeScript types shared by both (added when first
+needed). Root `package.json` holds proxy scripts: `npm run dev`/`build`/
+`lint` run `web`; `npm run dev:api`/`build:api`/`start:api` run `api`.
+API dev loop: `npm run dev:api` (tsx watch, auto-restart). API listens on
+`0.0.0.0:3001` (PORT env overrides).
 
 **Server OS:** WSL2 on the Windows 11 machine. Development and the
 home backend both run here. The repo lives on the WSL2 native filesystem
@@ -62,7 +64,9 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 **Where we are right now:** Phase 0. Repo connected to GitHub
 (`joelpistora/pistora.se`, `main`). Monorepo layout is live — the Next.js 15
 frontend (App Router, React 19, TS, Tailwind v4) sits in `apps/web`, builds
-clean. Next: decide the backend framework and scaffold `apps/api`.
+clean. `apps/api` scaffolded — Fastify + TypeScript, one `GET /health`
+route, builds and boots green. Next: decide what the first real endpoints
+are (Phase 1 — storage) and how the SSD mounts into WSL2.
 
 **Known issues / follow-ups:**
 - Next.js on `15.5.25` (critical React-flight RCE cleared). `npm audit`
@@ -84,8 +88,6 @@ clean. Next: decide the backend framework and scaffold `apps/api`.
 
 ## Open questions / to decide later
 
-- Which backend framework (e.g. Express/Fastify)? — deferred until we
-  start `apps/api`
 - Authentication/security before exposing to the internet
 - How the SSD gets formatted and mounted into WSL2 (NTFS vs ext4 vs
   exFAT) — decide when the drive arrives
@@ -100,3 +102,5 @@ clean. Next: decide the backend framework and scaffold `apps/api`.
 - 2026-09-07: Backend framework decision deferred until `apps/api` work begins
 - 2026-09-07: Re-ordered the storage drive from Amazon; not yet on hand
 - 2026-09-07: Frontend moved into `apps/web`; root npm-workspaces manifest added; single root lockfile; build verified green
+- 2026-09-08: `apps/api` scaffolded — Fastify 5 + TypeScript (ESM, `tsx` dev runner, `tsc` build to `dist/`), `GET /health` route, port 3001. Root scripts `dev:api`/`build:api`/`start:api` added. `dist` gitignored.
+- 2026-09-07: Backend framework = **Fastify** (TypeScript). Chosen over Express 5 (TS is bolt-on, more boilerplate), NestJS (too heavy for a hobby file server), and Hono (edge-first, thinner for heavy file I/O). Fastify gives TS-native DX, built-in JSON Schema validation, first-class streaming + `@fastify/multipart` for the large-file upload/download that is the core requirement, and a plugin architecture worth having practiced. New job has no known/Node stack, so chosen on project merits.
