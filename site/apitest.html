@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pistora.se · backend check</title>
+<meta name="description" content="Connectivity test for the pistora.se backend.">
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: #fafaf8;
+    color: #1a1a1a;
+    font: 400 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
+  }
+  main { width: 100%; max-width: 34rem; }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 5vw, 2.25rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  p { margin: 0.5rem 0 0; color: #6b6b6b; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .target { margin-top: 1rem; font-size: 0.9rem; word-break: break-all; }
+  button {
+    margin-top: 1.25rem;
+    padding: 0.6rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  button:hover { background: rgba(127, 127, 127, 0.12); }
+  button:disabled { opacity: 0.5; cursor: progress; }
+  pre {
+    margin-top: 1rem;
+    padding: 0.9rem 1rem;
+    background: rgba(127, 127, 127, 0.12);
+    border-radius: 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9rem;
+    min-height: 3rem;
+  }
+  .ok { color: #1a7f37; }
+  .bad { color: #c0362c; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #121212; color: #ededed; }
+    p, .target { color: #9a9a9a; }
+    .ok { color: #4ac26b; }
+    .bad { color: #ff6b5e; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>backend check</h1>
+    <p>Calls the home API through its tunnel and shows the raw result.</p>
+    <p class="target">Target: <code id="target"></code></p>
+
+    <button id="go" type="button">Ping backend</button>
+    <pre id="out">Not run yet.</pre>
+  </main>
+
+  <script>
+    // The Cloudflare quick-tunnel URL for the home API. This rotates every time
+    // the tunnel restarts — paste the current one here and re-upload.
+    const API_BASE = "https://novels-tion-cheapest-senate.trycloudflare.com";
+
+    const target = document.getElementById("target");
+    const out = document.getElementById("out");
+    const go = document.getElementById("go");
+    target.textContent = API_BASE + "/api/ping";
+
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      out.className = "";
+      out.textContent = "Calling " + API_BASE + "/api/ping …";
+      const started = performance.now();
+      try {
+        const res = await fetch(API_BASE + "/api/ping", { cache: "no-store" });
+        const ms = Math.round(performance.now() - started);
+        const body = await res.text();
+        let pretty = body;
+        try { pretty = JSON.stringify(JSON.parse(body), null, 2); } catch (_) {}
+        out.className = res.ok ? "ok" : "bad";
+        out.textContent =
+          "HTTP " + res.status + " " + res.statusText + "  (" + ms + " ms)\n\n" + pretty;
+      } catch (err) {
+        out.className = "bad";
+        out.textContent =
+          "FETCH FAILED\n\n" + err + "\n\n" +
+          "Likely causes: tunnel is down, API_BASE is stale, or the API " +
+          "isn't sending CORS headers for https://pistora.se.";
+      } finally {
+        go.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
