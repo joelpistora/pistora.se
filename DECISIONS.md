@@ -130,7 +130,12 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   zero new deps. `fastify.inject()` against a temp `STORAGE_ROOT` per case
   (`src/test-helpers.ts`, including a hand-built `multipartBody()` since
   `light-my-request` doesn't serialise global `FormData`). Rejected vitest/jest
-  (new deps, no benefit at this scale). 31 tests green.
+  (new deps, no benefit at this scale). 34 tests green.
+- **Reviewed + merged.** `/code-review high` on the branch; fixes landed in
+  `8ac4027` (empty-dir DELETE 500 → 204; serial `stat` in listings →
+  `Promise.all`; error `code` mapped from HTTP status instead of the literal
+  `"error"`; orphan `.upload-*.part` files hidden from listings). Merged to
+  `main` as PR #1, 2026-09-09.
 - **`packages/shared` deferred to Phase 2.** DTOs live in `apps/api/src/types.ts`
   and move when `apps/web` first consumes the API.
 - **Placeholder `STORAGE_ROOT`** = `/home/joelpistora/pistora-storage` (native

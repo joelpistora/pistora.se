@@ -153,11 +153,12 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 
 - [x] **Phase 0 – Foundations & tooling:** repo, monorepo, backend scaffold,
       hosting + tunnel mechanics all proven (see below)
-- [~] **Phase 1 – Backend + storage locally (mostly done):** storage endpoints
+- [x] **Phase 1 – Backend + storage locally:** storage endpoints
       (`/api/files`, `/api/dirs`), the path-safety primitive, and a `node:test`
-      suite all landed against a placeholder `STORAGE_ROOT`. Left: mount the real
-      5TB drive when it arrives; auth is deliberately Phase 4.
-- [ ] **Phase 2 – Frontend integration locally:** web app ↔ backend over
+      suite landed against a placeholder `STORAGE_ROOT` (PR #1, merged
+      2026-09-09). Standalone follow-up, not blocking: mount the real 5TB drive
+      when it arrives. Auth is deliberately Phase 4.
+- [ ] **Phase 2 – Frontend integration locally (next):** web app ↔ backend over
       LAN, upload/download working end-to-end
 - [~] **Phase 3 – Expose to the internet (partially done):** static page is
       live on pistora.se and a Cloudflare **quick** tunnel to the home API is
@@ -166,30 +167,48 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 - [ ] **Phase 4 – Extras:** sync with iCloud/Google, authentication/
       security, polish
 
-**Where we are right now:** **Phase 0 done; Phase 1 mostly done.** Proven so far:
-- Repo on GitHub (`joelpistora/pistora.se`, `main`), monorepo/npm-workspaces
-  live. Next.js 15 scaffold in `apps/web` builds clean (still stock scaffold
-  copy — throwaway).
+**Where we are right now:** **Phase 0 done; Phase 1 done & merged. Phase 2 not
+started.**
 - `apps/api` (Fastify 5 + TS): storage endpoints under `/api/files` +
   `/api/dirs` (list / upload / download / delete / mkdir, nested folders,
   streaming multipart, atomic-rename writes), a hardened path-safety helper
-  (`src/storage.ts`), `buildApp()` factory, fail-fast config, and a green
-  `node:test` suite (31 tests). No auth yet — Phase 4. Serves a placeholder
-  `STORAGE_ROOT` (`~/pistora-storage`) until the drive arrives.
+  (`src/storage.ts`), `buildApp()` factory, fail-fast config, `node:test` suite
+  (34 tests, green). Code-reviewed (`/code-review high`) — fixes in `8ac4027`.
+  No auth yet — Phase 4. Serves a placeholder `STORAGE_ROOT` (`~/pistora-storage`)
+  until the drive arrives. Full API surface + module map: see "Codebase
+  structure → `apps/api`" above.
+- `apps/web` is still the untouched stock `create-next-app` scaffold — zero API
+  integration. This is Phase 2's starting point.
 - Hosting mechanics proven: static files reach pistora.se via MSPControl File
   Manager and FTPS; `site/index.html` "under construction" is live.
 - Networking proven end-to-end: a page on pistora.se successfully calls the home
   API through a Cloudflare **quick tunnel** (ephemeral URL).
 
-**Blocking Phase 3 (not Phase 1):** a *stable* `api.pistora.se` needs
+**Blocking Phase 3 (not Phase 2):** a *stable* `api.pistora.se` needs
 pistora.se's DNS moved to Cloudflare. Plan + DNS inventory + Hostek request are
 in `infra/dns/`. Waiting on the domain-account holder / Hostek admin to change
 the nameservers.
 
-**Next session → Phase 2:** wire `apps/web` to the storage API over the LAN —
-a real file browser / upload UI against `/api/files`. When the WD Elements 5TB
-arrives: plug it into Windows, point `STORAGE_ROOT` at `/mnt/d/pistora` (see
-Open questions). Auth work is Phase 4. The tunnel/DNS work runs in parallel.
+**Next session → start Phase 2** (wire `apps/web` to the storage API over the
+LAN). Suggested order — worth a plan-mode pass first:
+1. Strip the stock scaffold (portfolio copy, `/projects`, `/contact`,
+   `Navbar`/`Footer`); fix the `layout.tsx` font wiring + `globals.css`
+   Tailwind-v4/v3 mix while in there.
+2. Create **`packages/shared`** and move the DTOs from `apps/api/src/types.ts`
+   into it (`FileEntry`, `DirListing`, `FileMetadata`, `ErrorEnvelope`); wire it
+   as `"shared": "*"` in both apps. First real use of the workspace.
+3. Typed API client in `apps/web` — a `fetch` wrapper over `/api/files` +
+   `/api/dirs`, base URL from `NEXT_PUBLIC_API_BASE` (`http://localhost:3001`
+   for LAN dev). Handle the `{ error: { code, message } }` envelope.
+4. File-browser UI: directory listing + breadcrumbs, upload (drag-drop →
+   multipart POST), download links, delete, new-folder.
+5. Run both dev servers (`npm run dev` + `npm run dev:api`, needs
+   `apps/api/.env`), prove upload/download end-to-end over `localhost`.
+
+CORS already allows `http://localhost:3000`, so LAN dev needs no API change.
+When the WD Elements 5TB arrives: plug into Windows, point `STORAGE_ROOT` at
+`/mnt/d/pistora` (see Open questions). Auth is Phase 4. Tunnel/DNS runs in
+parallel.
 
 **Known issues / follow-ups:**
 - `apps/web` is still the stock `create-next-app` scaffold (portfolio copy,
