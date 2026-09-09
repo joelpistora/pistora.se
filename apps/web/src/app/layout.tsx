@@ -14,9 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pistora — File Storage",
-  description:
-    "Self-hosted file storage: upload, browse and download files on the Pistora home server.",
+  title: "Pistora Web",
+  description: "Pistora home server — file storage and more.",
 };
 
 export default function RootLayout({

@@ -49,16 +49,19 @@ forward to the workspaces.
 - **`apps/web`** — Next.js 15 App Router frontend (React 19, TS, Tailwind v4).
   **Fully client-side** — no Server Components fetch API data, so `next build`
   emits a static site to `out/` (`output: "export"` in `next.config.ts`).
-  - `src/app/` — routes: `/` (landing: wordmark + `<ApiStatus>` live ping +
-    "Open files" link) and `/files` (the file browser), plus `error.tsx` /
-    `not-found.tsx`. Portfolio scaffold (`/projects`, `/contact`, `Navbar`,
-    `Footer`) was stripped in Phase 2.
-  - `src/app/files/page.tsx` — thin Server Component; wraps `<FileBrowser>` in
-    `<Suspense>` (required — `FileBrowser` uses `useSearchParams`).
+  - `src/app/` — routes: `/` ("Pistora Web" hub: `<ApiStatus>` live ping + three
+    buttons — Open files → `/files`, Music (disabled, "coming soon"), Powerhouse
+    → external `skanepowerhouse.com`) and `/files` (the file browser), plus
+    `error.tsx` / `not-found.tsx`. Portfolio scaffold (`/projects`, `/contact`,
+    `Navbar`, `Footer`) was stripped in Phase 2.
+  - `src/app/files/page.tsx` — thin Server Component; one-line blurb + wraps
+    `<FileBrowser>` in `<Suspense>` (required — `FileBrowser` uses
+    `useSearchParams`).
   - `src/components/` — `FileBrowser` (owns path from `?path=`, selection, upload
     state), `Breadcrumbs`, `FileTable` (Name/Size/Modified; folder row →
     navigate, file row → select → Download link), `UploadButton` (one file,
-    into the current folder), `ApiStatus`.
+    into the current folder), `ApiStatus`, `HomeButton` (fixed top-left house
+    icon → `/`, hidden on `/`).
   - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
   - `src/lib/format.ts` — `formatSize` / `formatDate`.
   - `src/app/layout.tsx` — minimal root layout: Geist fonts on `<html>`, no
@@ -216,8 +219,9 @@ foundation + minimal file-browser UI built (unmerged, branch
 - `apps/web`: portfolio scaffold stripped; minimal `layout.tsx` (Geist wiring
   fixed); `globals.css` reconciled to Tailwind v4; `output: "export"` (static
   build to `out/`). Typed API client at `src/lib/api/` (smoke-tested: mkdir →
-  upload → list → stat → download → delete → 404). **UI:** `/` landing with a
-  live API-status ping; `/files` file browser — table listing, breadcrumb
+  upload → list → stat → download → delete → 404). **UI:** `/` "Pistora Web" hub
+  (API-status ping + Open files / Music-soon / Powerhouse buttons); `/files`
+  file browser — table listing, breadcrumb
   navigation via `?path=`, folder-click to descend, file select → Download,
   single-file upload into the current folder. Plain-text loading/empty/error
   states. No delete/new-folder/drag-drop yet.
