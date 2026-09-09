@@ -13,6 +13,7 @@
     "lint": "npm run lint --workspace web",
     "dev:api": "npm run dev --workspace api",
     "build:api": "npm run build --workspace api",
-    "start:api": "npm run start --workspace api"
+    "start:api": "npm run start --workspace api",
+    "test:api": "npm run test --workspace api"
   }
 }
