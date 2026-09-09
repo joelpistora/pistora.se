@@ -15,7 +15,7 @@ Monorepo, npm workspaces, one root lockfile.
 | Path | What |
 |---|---|
 | `apps/web` | Next.js 15 frontend (App Router, React 19, TypeScript, Tailwind v4) |
-| `apps/api` | Fastify 5 backend (TypeScript, ESM) — currently just `GET /health` |
+| `apps/api` | Fastify 5 backend (TypeScript, ESM) — file storage endpoints under `/api/files` + `/api/dirs`, plus `/health` |
 | `packages/shared` | Shared TypeScript types (planned, not yet created) |
 
 ## Prerequisites
@@ -27,6 +27,14 @@ Monorepo, npm workspaces, one root lockfile.
 
 ```bash
 npm install
+```
+
+One-time backend setup — the API needs a directory to serve files from:
+
+```bash
+mkdir -p ~/pistora-storage
+cp apps/api/env.example apps/api/.env
+# then edit apps/api/.env: STORAGE_ROOT=/home/<you>/pistora-storage
 ```
 
 Run the frontend (http://localhost:3000):
@@ -45,6 +53,9 @@ npm run dev:api
 curl localhost:3001/health   # -> {"status":"ok"}
 ```
 
+`npm run dev:api` exits with a clear message if `STORAGE_ROOT` is unset or
+doesn't point at an existing directory.
+
 ## Commands
 
 All from the repo root.
@@ -58,9 +69,17 @@ All from the repo root.
 | `npm run dev:api` | Backend dev server (tsx watch) |
 | `npm run build:api` | Compile the backend (`tsc` → `apps/api/dist/`) |
 | `npm run start:api` | Run the compiled backend |
+| `npm run test:api` | Backend test suite (`node:test`) |
 
 Target a single workspace directly with `npm run <script> --workspace web`
 (or `api`). The API port can be overridden with the `PORT` env var.
+
+Run one backend test file, or one case by name:
+
+```bash
+node --import tsx --test apps/api/src/routes/files.test.ts
+node --import tsx --test --test-name-pattern "traversal" apps/api/src/routes/files.test.ts
+```
 
 ## Deployment (target)
 

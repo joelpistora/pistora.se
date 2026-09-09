@@ -1,36 +1,27 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
+import { buildApp } from "./app.js";
+import { loadConfig } from "./config.js";
 
-const fastify = Fastify({
-  logger: true,
-});
+// Load apps/api/.env when present. `npm run dev:api` runs with cwd = apps/api,
+// so this finds the developer-local .env; in production the env is set directly.
+try {
+  process.loadEnvFile();
+} catch {
+  // no .env file — fine, rely on the real environment
+}
 
-// The static frontend on pistora.se is a different origin from this API, so the
-// browser needs an explicit allowlist to read our responses. `www` included
-// because the domain serves both; localhost:3000 for the Next.js dev server.
-await fastify.register(cors, {
-  origin: [
-    "https://pistora.se",
-    "https://www.pistora.se",
-    "http://localhost:3000",
-  ],
-});
+let config;
+try {
+  config = loadConfig();
+} catch (err) {
+  console.error(`config error: ${(err as Error).message}`);
+  process.exit(1);
+}
 
-fastify.get("/health", async () => {
-  return { status: "ok" };
-});
-
-// Connectivity test endpoint — the timestamp makes it obvious the call reached
-// the live process and isn't a cached response.
-fastify.get("/api/ping", async () => {
-  return { pong: true, at: new Date().toISOString(), from: "pistora-api" };
-});
-
-const port = Number(process.env.PORT) || 3001;
+const app = await buildApp(config);
 
 try {
-  await fastify.listen({ port, host: "0.0.0.0" });
+  await app.listen({ port: config.port, host: config.host });
 } catch (err) {
-  fastify.log.error(err);
+  app.log.error(err);
   process.exit(1);
 }
