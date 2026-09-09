@@ -68,3 +68,10 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   `infra/dns/cloudflare-migration-plan.md`; Swedish nameserver-change request in
   `infra/dns/hostek-ns-request-sv.md`. No DNSSEC, no DKIM/DMARC. Website + email
   stay at Hostek; only DNS moves.
+- **2026-09-09:** **Product framing revised.** `pistora.se` is now *the storage
+  product* — multi-user file storage for a small set of chosen users (per-user
+  storage, sharing between accounts, no public signup). Joel's personal
+  portfolio moves off the apex to its own subdomain **`joel.pistora.se`**, built
+  later. Supersedes the 2026-09-08 "one domain, two surfaces — public personal
+  site (open) + file app (gated)" decision. `apps/web/PRODUCT.md` still reflects
+  the old framing and needs updating.

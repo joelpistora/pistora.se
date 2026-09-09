@@ -82,6 +82,14 @@ hostek.se). Three goals at once:
 Long-term hobby project — no hard deadline, but want to get started quickly
 for the sake of practicing Claude Code.
 
+**What lives where:**
+- **`pistora.se`** — the self-hosted **storage product**: file upload/download
+  backed by the home drive, with accounts for a small set of chosen users
+  (multi-user, per-user storage, sharing between accounts; no public signup).
+- **`joel.pistora.se`** — Joel's **personal portfolio app**, on its own
+  subdomain, built later.
+- **`api.pistora.se`** — the home backend, reached via the tunnel.
+
 ## Architecture (rough sketch)
 
 | Part | What | Where |
@@ -118,8 +126,10 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       working on the home network
 - [ ] **Phase 2 – Frontend integration locally:** web app ↔ backend over
       LAN, upload/download working end-to-end
-- [ ] **Phase 3 – Expose to the internet:** Cloudflare Tunnel (or similar) +
-      deploy frontend to pistora.se
+- [~] **Phase 3 – Expose to the internet (partially done):** static page is
+      live on pistora.se and a Cloudflare **quick** tunnel to the home API is
+      proven end-to-end. Left: a *stable* named tunnel at `api.pistora.se`
+      (blocked on the DNS migration) and deploying the real frontend.
 - [ ] **Phase 4 – Extras:** sync with iCloud/Google, authentication/
       security, polish
 
@@ -158,7 +168,7 @@ proceed in parallel but does not block local Phase 1 progress.
 ## Background on the developer (relevant to how we work together)
 
 - ~1 year of fullstack experience (frontend + backend)
-- No prior experience self-hosting a server (self-rated 2.5/5)
+- Some prior experience self-hosting a server (self-rated 3/5)
 - Completed the Claude architecture certificate, wants to put the
   knowledge into practice
 - Starting a new job soon — wants hands-on practice with Claude Code
@@ -187,9 +197,12 @@ Full history in [DECISIONS.md](DECISIONS.md). The still-load-bearing ones:
   `packages/shared`), one root lockfile.
 - **Backend = Fastify 5 + TypeScript** (ESM). Chosen for streaming +
   `@fastify/multipart` (large-file up/download is the core requirement).
-- **Product:** pistora.se = one product, two surfaces — public site (open) +
-  multi-user file app (auth-gated), same domain. No public signup. See
-  `apps/web/PRODUCT.md`.
+- **Product:** `pistora.se` = the self-hosted **storage product** — multi-user
+  file storage for a small set of chosen users (per-user storage, sharing
+  between accounts, no public signup). `joel.pistora.se` = Joel's **personal
+  portfolio app**, a separate subdomain built later. (Supersedes the earlier
+  "one domain, two surfaces / public personal site at the apex" framing;
+  `apps/web/PRODUCT.md` not yet updated to match.)
 - **Hosting:** website + email stay at **Hostek** (Windows/IIS `91.189.42.160`,
   MSPControl panel; email via MailChannels). Only **DNS** is planned to move to
   Cloudflare, to unlock `api.pistora.se` + a named tunnel. `infra/dns/` has the
