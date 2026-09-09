@@ -5,7 +5,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { contentTypeFor } from "../mime.js";
-import type { DirListing, FileEntry, FileMetadata } from "../types.js";
+import type { DirListing, FileEntry, FileMetadata } from "shared";
 
 interface FilesQuery {
   stat?: string;

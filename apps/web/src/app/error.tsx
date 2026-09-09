@@ -1,19 +1,22 @@
-'use client' // Error components must be Client Components
+'use client'; // Error components must be Client Components
 
 export default function Error({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center p-8">
       <div className="text-center">
-        <h2 className="text-4xl font-bold mb-4">Something went wrong!</h2>
+        <h2 className="mb-4 text-2xl font-semibold">Something went wrong</h2>
+        <p className="mb-6 text-foreground/70">
+          {error.message || "An unexpected error occurred."}
+        </p>
         <button
           onClick={() => reset()}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="rounded bg-foreground px-4 py-2 text-background transition hover:opacity-90"
         >
           Try again
         </button>

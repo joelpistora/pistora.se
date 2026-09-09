@@ -10,6 +10,9 @@
     "rootDir": "src",
 
     "strict": true,
+    // Type-only imports must say `import type` — this keeps `import ... from "shared"`
+    // (a build-less .ts-only workspace package) from ever landing in `dist/`.
+    "verbatimModuleSyntax": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

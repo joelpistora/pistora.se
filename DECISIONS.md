@@ -149,3 +149,46 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   --bare` + `mkfs.ext4` (native speed + POSIX semantics, at the cost of Windows
   losing the drive and a per-logon mount task) as Phase 3/4 hardening if DrvFs
   proves limiting. `usbipd-win` ruled out for an always-connected disk.
+
+## Phase 2 — Frontend foundation (2026-09-09)
+
+- **`packages/shared` created — source-only, types-only, NO `tsc` build.**
+  `package.json#exports` points at `src/index.ts`; both apps read the `.ts`
+  source directly via the npm-workspaces symlink (`node_modules/shared`). Works
+  because the 4 DTOs are pure `interface`s and `apps/api` imports them
+  `import type`, so `tsc` erases the import — nothing in `apps/api/dist/`
+  resolves `shared` at runtime (verified: `grep -rn 'from "shared"'
+  apps/api/dist` is empty). `exports` → `src/index.ts` satisfies `apps/api`
+  (NodeNext) and `apps/web` (bundler) simultaneously with **zero build-ordering
+  changes**. Rejected: a `dist/`-emitting `tsc` build (textbook, but buys
+  nothing for 4 interfaces and adds a `build:shared` + ordering edges).
+  Guardrail: `verbatimModuleSyntax: true` in `apps/api/tsconfig.json` makes a
+  value-import of a type-only module a compile error. Upgrade path if `shared`
+  ever needs runtime code: add the `tsc` build, repoint `exports` at `dist/`.
+  `apps/api/src/types.ts` deleted; `apps/api/src/routes/files.ts` import
+  repointed to `"shared"`. Added an `ErrorCode` union (mirrors `http.ts` +
+  `PathError` slugs) for the frontend to branch on.
+- **`apps/web` CNA scaffold stripped.** Deleted `/projects`, `/contact`,
+  `Navbar`, `Footer`, stock `public/*.svg`. `layout.tsx` → minimal shell, Geist
+  `.variable` classes now on `<html>` (were built but never applied — site was
+  rendering Arial), metadata retitled to the storage product. `globals.css`
+  reconciled to **Tailwind v4 only**: dropped the legacy `@tailwind
+  base/components/utilities;` lines, the raw `body { font-family: Arial }`
+  override, and the competing `bg-gray-50`/`text-gray-900` literals; body
+  styling is now `@theme` tokens + utilities (one source of truth); dark-mode
+  vars reset from hand-edited `#baecff`/`#303030` to neutral `#0a0a0a`/`#ededed`.
+  `favicon.ico` moved `src/app/styles/` → `src/app/` (App Router auto-serves).
+  Unused `autoprefixer` dep dropped.
+- **Typed API client at `apps/web/src/lib/api/`.** Framework-agnostic `fetch`
+  wrapper (no `next/*`, no `react`) — usable from server/client components and
+  route handlers. Base URL from `NEXT_PUBLIC_API_BASE` (default
+  `http://localhost:3001`; `apps/web/env.example` committed, `.env.local` for
+  local dev). Throws `ApiError` (carries the envelope `code` / `status` /
+  `details`) and `NetworkError` (fetch itself rejected). `encodePath()` throws
+  on a `..` segment client-side (fetch collapses `..` in a URL before it's sent,
+  so it would never reach the API's `storage.resolve()` guard). Endpoints:
+  `listDir`, `statEntry`, `downloadFile` / `downloadResponse` / `fileUrl`,
+  `uploadFiles`, `deleteEntry`, `makeDir`, `getHealth`, `ping`. **No React
+  hooks/components yet** — that plus the end-to-end proof is the rest of Phase 2.
+  Smoke-tested against the live API: mkdir → upload → list → stat → download →
+  recursive delete → 404, plus client-side `..` rejection.

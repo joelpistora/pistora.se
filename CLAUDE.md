@@ -23,6 +23,7 @@ Run from the repo root (npm workspaces). `web` = frontend, `api` = backend.
 | Backend build (`tsc` → `apps/api/dist/`) | `npm run build:api` |
 | Backend production server (`node dist/server.js`) | `npm run start:api` |
 | Backend tests (`node:test`) | `npm run test:api` |
+| Type-check every workspace (shared + api + web) | `npm run typecheck` |
 | Install / refresh all workspace deps | `npm install` |
 
 - Target one workspace directly: `npm run <script> --workspace web` (or `api`).
@@ -46,10 +47,20 @@ Root `package.json` is a coordinator only (`private`, no deps) — its scripts
 forward to the workspaces.
 
 - **`apps/web`** — Next.js 15 App Router frontend (React 19, TS, Tailwind v4).
-  - `src/app/` — routes: `/` (`page.tsx`), `/projects`, `/contact`, plus
-    `error.tsx` and `not-found.tsx`.
-  - `src/app/layout.tsx` — root layout; `Navbar` + `Footer` wrap every page.
-  - `src/components/` — shared UI. `src/app/styles/globals.css` — global CSS.
+  - `src/app/` — routes: `/` (`page.tsx`), plus `error.tsx` and `not-found.tsx`.
+    Portfolio scaffold (`/projects`, `/contact`, `Navbar`, `Footer`) stripped in
+    Phase 2.
+  - `src/app/layout.tsx` — minimal root layout: Geist fonts on `<html>`, no
+    chrome; pages own their layout. `src/app/favicon.ico` (App Router
+    auto-serves it). `src/app/styles/globals.css` — Tailwind v4 only
+    (`@import "tailwindcss"` + `@theme`), no legacy v3 directives.
+  - `src/lib/api/` — typed, framework-agnostic `fetch` client for the storage
+    API (`listDir`, `statEntry`, `downloadFile`/`downloadResponse`/`fileUrl`,
+    `uploadFiles`, `deleteEntry`, `makeDir`, `getHealth`, `ping`). Throws
+    `ApiError` (carries the envelope `code`) / `NetworkError`. Base URL from
+    `NEXT_PUBLIC_API_BASE` (default `http://localhost:3001`; see
+    `apps/web/env.example`) — **inlined at build time**, so production builds
+    must set it. Import from `@/lib/api`.
   - `@/*` path alias → `apps/web/src/*`.
   - `next.config.ts` sets `outputFileTracingRoot` to the repo root so
     production builds trace workspace files correctly.
@@ -73,7 +84,8 @@ forward to the workspaces.
   - `src/routes/` — `health.ts` (`/health`, `/api/ping`), `files.ts`
     (`/api/files/*`: list / stat / download / upload / delete), `dirs.ts`
     (`/api/dirs/*`: `mkdir -p`). `src/http.ts` = error envelope
-    `{ error: { code, message } }`. `src/mime.ts`, `src/types.ts` (DTOs).
+    `{ error: { code, message } }`. `src/mime.ts`. DTOs moved to
+    `packages/shared` in Phase 2 (imported as `import type { ... } from "shared"`).
   - Dev: `tsx watch` runs `.ts` directly. Prod: `tsc` emits `src/` → `dist/`
     (test files excluded), run with plain `node`. `dist/` is git-ignored.
   - TS config: `strict`, `target ES2023`, `module NodeNext`, emits to `dist/`.
@@ -84,10 +96,16 @@ forward to the workspaces.
     file then atomically renamed; overwrites allowed. `DELETE` (`?recursive=1`
     for a non-empty dir). `POST /api/dirs/<path>` = `mkdir -p`. Range requests
     not supported yet (`Accept-Ranges: none`).
-- **`packages/shared`** — planned, not yet created. Will hold TS types imported
-  by both apps once they exchange data; consumed as a workspace dependency
-  (`"shared": "*"`). Until then the storage DTOs live in `apps/api/src/types.ts`
-  and move here when `apps/web` first consumes the API (Phase 2).
+- **`packages/shared`** — created in Phase 2. Holds the storage DTOs (`FileEntry`,
+  `DirListing`, `FileMetadata`, `ErrorEnvelope`, `ErrorCode`) imported by both
+  apps. `"type": "module"`, `private`, **no build step** — `package.json#exports`
+  points at `src/index.ts` and both consumers read the `.ts` source directly
+  (`apps/api` NodeNext, `apps/web` bundler). Wired as `"shared": "*"` in each app;
+  `npm install` symlinks it into `node_modules/shared`. `apps/api` imports it
+  **type-only** (`import type`), so nothing in `apps/api/dist/` resolves `shared`
+  at runtime — enforced by `verbatimModuleSyntax` in `apps/api/tsconfig.json`.
+  **Policy: types-only, no runtime code** (see the header comment in
+  `src/index.ts`); adding a runtime value needs a real `tsc` build first.
 - **`site/`** — hand-written static pages served from pistora.se's `wwwroot\`
   right now (not part of the npm build). `index.html` = "under construction";
   `apitest.html` = the frontend↔backend connectivity probe.
@@ -159,8 +177,10 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       2026-09-09). Standalone follow-up, not blocking: mount the real 5TB drive
       when it arrives. Auth is deliberately Phase 4.
 - [ ] **Phase 1a – Mount real 5TB drive:** update the storage api to target the  real 5TB storage drive
-- [ ] **Phase 2 – Frontend integration locally (next):** web app ↔ backend over
-      LAN, upload/download working end-to-end
+- [~] **Phase 2 – Frontend integration locally (in progress):** web app ↔ backend
+      over LAN, upload/download working end-to-end. Foundation done (scaffold
+      stripped, `packages/shared` live, typed `apps/web/src/lib/api/` client).
+      Left: the file-browser UI + the end-to-end proof.
 - [~] **Phase 3 – Expose to the internet (partially done):** static page is
       live on pistora.se and a Cloudflare **quick** tunnel to the home API is
       proven end-to-end. Left: a *stable* named tunnel at `api.pistora.se`
@@ -168,8 +188,8 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 - [ ] **Phase 4 – Extras:** sync with iCloud/Google, authentication/
       security, polish
 
-**Where we are right now:** **Phase 0 done; Phase 1 done & merged. Phase 2 not
-started.**
+**Where we are right now:** **Phase 0 done; Phase 1 done & merged. Phase 2
+foundation done — file-browser UI is next.**
 - `apps/api` (Fastify 5 + TS): storage endpoints under `/api/files` +
   `/api/dirs` (list / upload / download / delete / mkdir, nested folders,
   streaming multipart, atomic-rename writes), a hardened path-safety helper
@@ -178,8 +198,13 @@ started.**
   No auth yet — Phase 4. Serves a placeholder `STORAGE_ROOT` (`~/pistora-storage`)
   until the drive arrives. Full API surface + module map: see "Codebase
   structure → `apps/api`" above.
-- `apps/web` is still the untouched stock `create-next-app` scaffold — zero API
-  integration. This is Phase 2's starting point.
+- `apps/web`: portfolio scaffold stripped (no `/projects`, `/contact`, `Navbar`,
+  `Footer`); minimal `layout.tsx` (Geist wiring fixed) + placeholder `/`;
+  `globals.css` reconciled to Tailwind v4. Typed API client at `src/lib/api/`
+  (smoke-tested against the live API: mkdir → upload → list → stat → download →
+  delete → 404). No UI yet.
+- `packages/shared`: created, holds the storage DTOs + `ErrorCode`; consumed as
+  source by both apps, no build step. First real use of the workspace.
 - Hosting mechanics proven: static files reach pistora.se via MSPControl File
   Manager and FTPS; `site/index.html` "under construction" is live.
 - Networking proven end-to-end: a page on pistora.se successfully calls the home
@@ -190,19 +215,16 @@ pistora.se's DNS moved to Cloudflare. Plan + DNS inventory + Hostek request are
 in `infra/dns/`. Waiting on the domain-account holder / Hostek admin to change
 the nameservers.
 
-**Next session → start Phase 2** (wire `apps/web` to the storage API over the
-LAN). Suggested order — worth a plan-mode pass first:
-1. Strip the stock scaffold (portfolio copy, `/projects`, `/contact`,
-   `Navbar`/`Footer`); fix the `layout.tsx` font wiring + `globals.css`
-   Tailwind-v4/v3 mix while in there.
-2. Create **`packages/shared`** and move the DTOs from `apps/api/src/types.ts`
-   into it (`FileEntry`, `DirListing`, `FileMetadata`, `ErrorEnvelope`); wire it
-   as `"shared": "*"` in both apps. First real use of the workspace.
-3. Typed API client in `apps/web` — a `fetch` wrapper over `/api/files` +
-   `/api/dirs`, base URL from `NEXT_PUBLIC_API_BASE` (`http://localhost:3001`
-   for LAN dev). Handle the `{ error: { code, message } }` envelope.
-4. File-browser UI: directory listing + breadcrumbs, upload (drag-drop →
-   multipart POST), download links, delete, new-folder.
+**Phase 2 progress:**
+1. ~~Strip the stock scaffold; fix `layout.tsx` font wiring + `globals.css`
+   v4/v3 mix.~~ **Done.**
+2. ~~Create `packages/shared`, move the DTOs into it, wire `"shared": "*"` in
+   both apps.~~ **Done** (source-only, no build — see Codebase structure).
+3. ~~Typed API client in `apps/web` (`src/lib/api/`).~~ **Done** — `fetch`
+   wrapper over `/api/files` + `/api/dirs`, `ApiError`/`NetworkError`, base URL
+   from `NEXT_PUBLIC_API_BASE`.
+4. **(next) File-browser UI:** directory listing + breadcrumbs, upload
+   (drag-drop → multipart POST), download links, delete, new-folder.
 5. Run both dev servers (`npm run dev` + `npm run dev:api`, needs
    `apps/api/.env`), prove upload/download end-to-end over `localhost`.
 
@@ -212,12 +234,18 @@ When the WD Elements 5TB arrives: plug into Windows, point `STORAGE_ROOT` at
 parallel.
 
 **Known issues / follow-ups:**
-- `apps/web` is still the stock `create-next-app` scaffold (portfolio copy,
-  `Navbar`/`Footer`, `/projects` + `/contact`). Real frontend is a later job.
+- `apps/web` has no file-browser UI yet — just a placeholder `/` and the typed
+  `src/lib/api/` client. That UI + the end-to-end upload/download proof are the
+  rest of Phase 2.
+- `NEXT_PUBLIC_API_BASE` is inlined into the `apps/web` bundle at build time. A
+  production build with it unset silently bakes in `http://localhost:3001`; set
+  it to `https://api.pistora.se` for prod (real fix belongs to the deploy phase).
+- `packages/shared` runtime-elision footgun: `apps/api` prod only works because
+  the `shared` import is type-only. `verbatimModuleSyntax` guards it; a
+  `grep -rn 'from "shared"' apps/api/dist` after a build should stay empty.
 - Next.js `15.5.25`: `npm audit` shows 3 items (`sharp` libvips CVEs, bundled
   `postcss`) that only a major bump to Next 16 clears — do it deliberately.
-- `apps/web/src/app/layout.tsx` loads Geist fonts but never applies them to
-  `<body>`; `globals.css` mixes Tailwind v4 `@import` with legacy v3 directives.
+  (`next lint` is also deprecated, removed in Next 16.)
 - `site/apitest.html` holds a hard-coded ephemeral tunnel URL — expected to be
   stale; repoint to `https://api.pistora.se` once the DNS migration lands.
 - Storage API has no auth, no quota, no rate limiting, no Range-request support

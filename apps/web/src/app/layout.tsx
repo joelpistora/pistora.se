@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./styles/globals.css";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pistora Enterprise",
-  description: "Official Pistora website",
+  title: "Pistora — File Storage",
+  description:
+    "Self-hosted file storage: upload, browse and download files on the Pistora home server.",
 };
 
 export default function RootLayout({
@@ -25,11 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-50 text-gray-900 antialiased">
-        <Navbar />
-        <main className="min-h-screen p-8">{children}</main>
-        <Footer />
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="min-h-screen bg-background text-foreground font-sans antialiased">
+        {children}
       </body>
     </html>
   );

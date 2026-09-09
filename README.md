@@ -16,7 +16,7 @@ Monorepo, npm workspaces, one root lockfile.
 |---|---|
 | `apps/web` | Next.js 15 frontend (App Router, React 19, TypeScript, Tailwind v4) |
 | `apps/api` | Fastify 5 backend (TypeScript, ESM) — file storage endpoints under `/api/files` + `/api/dirs`, plus `/health` |
-| `packages/shared` | Shared TypeScript types (planned, not yet created) |
+| `packages/shared` | Shared TypeScript DTOs, imported by both apps (source-only, no build step) |
 
 ## Prerequisites
 
@@ -35,6 +35,13 @@ One-time backend setup — the API needs a directory to serve files from:
 mkdir -p ~/pistora-storage
 cp apps/api/env.example apps/api/.env
 # then edit apps/api/.env: STORAGE_ROOT=/home/<you>/pistora-storage
+```
+
+One-time frontend setup — point the client at the API (defaults to
+`http://localhost:3001` if skipped):
+
+```bash
+cp apps/web/env.example apps/web/.env.local
 ```
 
 Run the frontend (http://localhost:3000):
@@ -70,6 +77,7 @@ All from the repo root.
 | `npm run build:api` | Compile the backend (`tsc` → `apps/api/dist/`) |
 | `npm run start:api` | Run the compiled backend |
 | `npm run test:api` | Backend test suite (`node:test`) |
+| `npm run typecheck` | Type-check every workspace (shared + api + web) |
 
 Target a single workspace directly with `npm run <script> --workspace web`
 (or `api`). The API port can be overridden with the `PORT` env var.
