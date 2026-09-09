@@ -158,6 +158,7 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       suite landed against a placeholder `STORAGE_ROOT` (PR #1, merged
       2026-09-09). Standalone follow-up, not blocking: mount the real 5TB drive
       when it arrives. Auth is deliberately Phase 4.
+- [ ] **Phase 1a – Mount real 5TB drive:** update the storage api to target the  real 5TB storage drive
 - [ ] **Phase 2 – Frontend integration locally (next):** web app ↔ backend over
       LAN, upload/download working end-to-end
 - [~] **Phase 3 – Expose to the internet (partially done):** static page is
