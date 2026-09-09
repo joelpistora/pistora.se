@@ -1,0 +1,29 @@
+# Cloudflare named tunnel config for the home API.
+#
+# Real file lives at ~/.cloudflared/config.yml on the WSL2 box (NOT in the repo
+# — it references a credentials file that must stay private). This is the
+# checked-in reference copy.
+#
+# Setup (one time):
+#   cloudflared tunnel login                     # pick the api.pistora.se zone
+#   cloudflared tunnel create pistora-home       # prints <UUID>, writes creds
+#   cp infra/cloudflared/config.example.yml ~/.cloudflared/config.yml
+#   # edit the two placeholders below
+#   cloudflared tunnel route dns pistora-home api.pistora.se
+#
+# Run:
+#   cloudflared tunnel run pistora-home
+#
+# (Needs `npm run dev:api` — or the built API — listening on localhost:3001.)
+
+tunnel: <TUNNEL-UUID>
+credentials-file: /home/joelpistora/.cloudflared/<TUNNEL-UUID>.json
+
+ingress:
+  # Public hostname -> local service. Fastify handles path routing itself,
+  # so the whole API is reachable under this one hostname.
+  - hostname: api.pistora.se
+    service: http://localhost:3001
+
+  # Required catch-all: anything else that reaches this tunnel gets a 404.
+  - service: http_status:404

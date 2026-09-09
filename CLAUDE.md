@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > This document is the living source of truth for the project. Update it
 > whenever we make a decision or wrap up a phase, so work can be picked back
-> up at any time without losing context.
+> up at any time without losing context. Full decision history lives in
+> [DECISIONS.md](DECISIONS.md); ops/DNS/tunnel notes in `infra/`.
 
 ## Commands
 
@@ -56,6 +57,12 @@ forward to the workspaces.
 - **`packages/shared`** — planned, not yet created. Will hold TS types imported
   by both apps once they exchange data; consumed as a workspace dependency
   (`"shared": "*"`).
+- **`site/`** — hand-written static pages served from pistora.se's `wwwroot\`
+  right now (not part of the npm build). `index.html` = "under construction";
+  `apitest.html` = the frontend↔backend connectivity probe.
+- **`infra/`** — ops notes & configs, not code. `infra/cloudflared/` (tunnel
+  config example), `infra/dns/` (pistora.se DNS inventory + Cloudflare migration
+  plan + Hostek support-request draft).
 
 **Runtime shape (target):** the static `apps/web` build is hosted on
 pistora.se and talks to `apps/api` running at home (WSL2) via `api.pistora.se`,
@@ -105,8 +112,8 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 
 ## Roadmap / phases
 
-- [ ] **Phase 0 – Foundations & tooling:** set up the server machine, repo,
-      Claude Code workflow
+- [x] **Phase 0 – Foundations & tooling:** repo, monorepo, backend scaffold,
+      hosting + tunnel mechanics all proven (see below)
 - [ ] **Phase 1 – Backend + storage locally:** API + SSD connection,
       working on the home network
 - [ ] **Phase 2 – Frontend integration locally:** web app ↔ backend over
@@ -116,22 +123,37 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 - [ ] **Phase 4 – Extras:** sync with iCloud/Google, authentication/
       security, polish
 
-**Where we are right now:** Phase 0. Repo connected to GitHub
-(`joelpistora/pistora.se`, `main`). Monorepo layout is live — the Next.js 15
-frontend (App Router, React 19, TS, Tailwind v4) sits in `apps/web`, builds
-clean. `apps/api` scaffolded — Fastify + TypeScript, one `GET /health`
-route, builds and boots green. Next: decide what the first real endpoints
-are (Phase 1 — storage) and how the SSD mounts into WSL2.
+**Where we are right now:** **Phase 0 is done; paused before Phase 1.** Proven
+so far:
+- Repo on GitHub (`joelpistora/pistora.se`, `main`), monorepo/npm-workspaces
+  live. Next.js 15 scaffold in `apps/web` builds clean (still stock scaffold
+  copy — throwaway).
+- `apps/api` (Fastify 5 + TS) builds and boots; `GET /health` + `GET /api/ping`,
+  `@fastify/cors` configured.
+- Hosting mechanics proven: static files reach pistora.se via MSPControl File
+  Manager and FTPS; `site/index.html` "under construction" is live.
+- Networking proven end-to-end: a page on pistora.se successfully calls the home
+  API through a Cloudflare **quick tunnel** (ephemeral URL).
+
+**Blocking Phase 3 (not Phase 1):** a *stable* `api.pistora.se` needs
+pistora.se's DNS moved to Cloudflare. Plan + DNS inventory + Hostek request are
+in `infra/dns/`. Waiting on the domain-account holder / Hostek admin to change
+the nameservers.
+
+**Next session → start Phase 1:** decide the first real storage endpoints for
+`apps/api` (against a placeholder `STORAGE_ROOT` dir until the 5TB drive
+arrives), and how that drive will mount into WSL2. The tunnel/DNS work can
+proceed in parallel but does not block local Phase 1 progress.
 
 **Known issues / follow-ups:**
-- Next.js on `15.5.25` (critical React-flight RCE cleared). `npm audit`
-  still shows 3 items — `sharp` libvips CVEs and Next's bundled `postcss`
-  — that only a major bump to Next 16 resolves. Do that as its own
-  deliberate upgrade.
-- `apps/web/src/app/layout.tsx` loads the Geist fonts but never applies
-  them to `<body>` (unused-var warnings)
-- `apps/web/src/app/styles/globals.css` mixes Tailwind v4 (`@import
-  "tailwindcss"`) with legacy v3 directives (`@tailwind base` etc.)
+- `apps/web` is still the stock `create-next-app` scaffold (portfolio copy,
+  `Navbar`/`Footer`, `/projects` + `/contact`). Real frontend is a later job.
+- Next.js `15.5.25`: `npm audit` shows 3 items (`sharp` libvips CVEs, bundled
+  `postcss`) that only a major bump to Next 16 clears — do it deliberately.
+- `apps/web/src/app/layout.tsx` loads Geist fonts but never applies them to
+  `<body>`; `globals.css` mixes Tailwind v4 `@import` with legacy v3 directives.
+- `site/apitest.html` holds a hard-coded ephemeral tunnel URL — expected to be
+  stale; repoint to `https://api.pistora.se` once the DNS migration lands.
 
 ## Background on the developer (relevant to how we work together)
 
@@ -146,20 +168,30 @@ are (Phase 1 — storage) and how the SSD mounts into WSL2.
 - Authentication/security before exposing to the internet
 - How the SSD gets formatted and mounted into WSL2 (NTFS vs ext4 vs
   exFAT) — decide when the drive arrives
+- Whether to migrate pistora.se DNS to Cloudflare (free, needs domain-account
+  holder) vs register a throwaway domain for `api.*` (~$10/yr, no dad). Leaning
+  migration. Details in `infra/dns/`.
+- Frontend deploy target for the real `apps/web` — Cloudflare Pages vs GitHub
+  Pages vs stay on Hostek IIS. Leaning Pages (git-push-to-deploy). Not Hostek.
+- Making the `cloudflared` tunnel a boot service on the WSL2 box (systemd in
+  `/etc/wsl.conf`, or a Windows Task Scheduler entry).
 
 ## Decision log
 
-- 2026-09-07: High-level architecture and phases established as above
-- 2026-09-07: Purchased WD Elements 5TB portable external HDD (USB 3.2 Gen 1, Windows-formatted, ~1450 SEK) as the storage drive
-- 2026-09-07: Repo connected to GitHub remote `joelpistora/pistora.se`; consolidated two divergent scaffolds onto `main`, dropped stale `master`
-- 2026-09-07: Monorepo layout chosen — `apps/web`, `apps/api`, `packages/shared`, npm workspaces
-- 2026-09-07: Server OS = WSL2 on the Windows 11 machine (same box for dev and home backend)
-- 2026-09-07: Backend framework decision deferred until `apps/api` work begins
-- 2026-09-07: Re-ordered the storage drive from Amazon; not yet on hand
-- 2026-09-07: Frontend moved into `apps/web`; root npm-workspaces manifest added; single root lockfile; build verified green
-- 2026-09-07: Backend framework = **Fastify** (TypeScript). Chosen over Express 5 (TS is bolt-on, more boilerplate), NestJS (too heavy for a hobby file server), and Hono (edge-first, thinner for heavy file I/O). Fastify gives TS-native DX, built-in JSON Schema validation, first-class streaming + `@fastify/multipart` for the large-file upload/download that is the core requirement, and a plugin architecture worth having practiced. New job has no known/Node stack, so chosen on project merits.
-- 2026-09-08: `apps/api` scaffolded — Fastify 5 + TypeScript (ESM, `tsx` dev runner, `tsc` build to `dist/`), `GET /health` route, port 3001. Root scripts `dev:api`/`build:api`/`start:api` added. `dist` gitignored.
-- 2026-09-08: Product scope confirmed — **pistora.se is two surfaces of one product: a public personal site (open) and the file app (auth-gated), sharing one domain and identity.** File storage is **multi-user** for a small closed circle of trusted people (accounts, per-user storage, sharing between accounts as a first-class feature); no public signup. The current `apps/web` scaffold's "portfolio" / "Pistora Enterprise" copy is throwaway, not product truth.
-- 2026-09-08: **Frontend hosting mechanism proven.** hostek.se = Hostek AB shared **Windows/IIS** box `91.189.42.160` (A record for `pistora.se` + `www`), managed via **MSPControl** (`mspc.hostek.se`), not cPanel. Web root `Home\pistora.se\wwwroot\` (`Home\` also holds two other domains — scope any FTP account below `pistora.se`). Two working upload paths, both verified with test files serving at `https://pistora.se/<name>`: (a) MSPControl **File Manager**; (b) **FTPS** — FileZilla to `91.189.42.160:21`, explicit TLS, per-FTP-account creds (no `ftp.pistora.se` DNS record exists). Any standard extension serves incl. `.txt`. Routing/404/HTTPS would be a `web.config` (IIS), not `.htaccess`. Current `wwwroot\index.html` is a throwaway "blueprint" placeholder. Next: static-export `apps/web` and do the first real deploy; automation (GitHub Actions FTP) and tunnel-vs-automation ordering still open.
-- 2026-09-08: Interim public page = a single hand-written static `index.html` at repo root (`site/index.html`) showing "pistora.se is under construction" — no framework, no JS, upload straight to `wwwroot\`. `apps/web` (Next.js) stays the eventual real frontend; the earlier attempt to design its landing page was scrapped.
-- 2026-09-08: **First end-to-end frontend↔backend call proven over the public internet** (Phase 2, early). `site/apitest.html` on `pistora.se` → Cloudflare **quick tunnel** (`cloudflared tunnel --url http://localhost:3001`, ephemeral `*.trycloudflare.com` URL, `cloudflared` installed on the WSL2 box) → Fastify `GET /api/ping` at home → JSON with live timestamp, rendered in the page. API now registers `@fastify/cors` (allowlist: `https://pistora.se`, `https://www.pistora.se`, `http://localhost:3000`) and has `/api/ping` alongside `/health`. The tunnel URL in `site/apitest.html` is throwaway — rotates each `cloudflared` restart. Still to do for a durable setup: named tunnel bound to `api.pistora.se` (needs pistora.se DNS on Cloudflare).
+Full history in [DECISIONS.md](DECISIONS.md). The still-load-bearing ones:
+
+- **Architecture:** static frontend on pistora.se ↔ home backend (WSL2 on the
+  Windows 11 box) via a **tunnel**, not port forwarding. Frontend/backend deploy
+  separately, never share a process.
+- **Monorepo**, npm workspaces (`apps/web`, `apps/api`, future
+  `packages/shared`), one root lockfile.
+- **Backend = Fastify 5 + TypeScript** (ESM). Chosen for streaming +
+  `@fastify/multipart` (large-file up/download is the core requirement).
+- **Product:** pistora.se = one product, two surfaces — public site (open) +
+  multi-user file app (auth-gated), same domain. No public signup. See
+  `apps/web/PRODUCT.md`.
+- **Hosting:** website + email stay at **Hostek** (Windows/IIS `91.189.42.160`,
+  MSPControl panel; email via MailChannels). Only **DNS** is planned to move to
+  Cloudflare, to unlock `api.pistora.se` + a named tunnel. `infra/dns/` has the
+  inventory, migration plan, and Hostek request.
+- **Storage drive:** WD Elements 5TB, not yet on hand.
