@@ -201,8 +201,9 @@ Full history in [DECISIONS.md](DECISIONS.md). The still-load-bearing ones:
   file storage for a small set of chosen users (per-user storage, sharing
   between accounts, no public signup). `joel.pistora.se` = Joel's **personal
   portfolio app**, a separate subdomain built later. (Supersedes the earlier
-  "one domain, two surfaces / public personal site at the apex" framing;
-  `apps/web/PRODUCT.md` not yet updated to match.)
+  "one domain, two surfaces / public personal site at the apex" framing. This
+  block + "What lives where" above is now the authoritative product statement —
+  there is no `PRODUCT.md`.)
 - **Hosting:** website + email stay at **Hostek** (Windows/IIS `91.189.42.160`,
   MSPControl panel; email via MailChannels). Only **DNS** is planned to move to
   Cloudflare, to unlock `api.pistora.se` + a named tunnel. `infra/dns/` has the

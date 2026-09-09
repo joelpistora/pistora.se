@@ -34,7 +34,8 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   circle of trusted people (accounts, per-user storage, sharing between accounts
   as a first-class feature); no public signup. The current `apps/web` scaffold
   copy ("portfolio" / "Pistora Enterprise") is throwaway, not product truth.
-  Fuller record in `apps/web/PRODUCT.md`.
+  (A fuller `apps/web/PRODUCT.md` existed briefly from the scrapped Impeccable
+  design run; deleted, not committed. Superseded 2026-09-09 — see below.)
 - **2026-09-08:** Interim public page = a single hand-written static
   `site/index.html` ("pistora.se is under construction") — no framework, no JS,
   uploaded straight to `wwwroot\`. `apps/web` (Next.js) stays the eventual real
@@ -73,5 +74,5 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   storage, sharing between accounts, no public signup). Joel's personal
   portfolio moves off the apex to its own subdomain **`joel.pistora.se`**, built
   later. Supersedes the 2026-09-08 "one domain, two surfaces — public personal
-  site (open) + file app (gated)" decision. `apps/web/PRODUCT.md` still reflects
-  the old framing and needs updating.
+  site (open) + file app (gated)" decision. (No `PRODUCT.md` in the repo — the
+  authoritative product statement now lives in `CLAUDE.md` → "What lives where".)
