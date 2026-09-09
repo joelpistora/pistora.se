@@ -2,11 +2,31 @@ import type { FastifyError, FastifyInstance } from "fastify";
 
 /**
  * One JSON error shape for the whole API: `{ error: { code, message, details? } }`.
- * Route code throws either a `PathError` (from storage.ts) or one of
- * `@fastify/sensible`'s `httpErrors.*` — both carry `statusCode` + `code`, so
- * this handler just formats them. 5xx messages are swallowed to avoid leaking
- * internals; the real error is logged.
+ *
+ * `code` is a stable, machine-readable slug the frontend can branch on:
+ *   - `PathError` (storage.ts) carries its own (`path_escape`, `bad_path`, ...).
+ *   - Fastify schema validation → `validation`.
+ *   - `@fastify/sensible`'s `httpErrors.*` set only a status, so we map the
+ *     status to a slug (`not_found`, `conflict`, `payload_too_large`, ...).
+ *   - Anything 5xx → `internal`, and the message is swallowed so we don't leak
+ *     internals (e.g. raw `ERR_FS_*` codes); the real error is logged.
  */
+const STATUS_SLUGS: Record<number, string> = {
+  400: "bad_request",
+  401: "unauthorized",
+  403: "forbidden",
+  404: "not_found",
+  405: "method_not_allowed",
+  409: "conflict",
+  413: "payload_too_large",
+  415: "unsupported_media_type",
+  422: "unprocessable_entity",
+  429: "too_many_requests",
+};
+
+/** A clean lowercase slug we're willing to pass through from `err.code`. */
+const SLUG_RE = /^[a-z][a-z0-9_]*$/;
+
 export function registerErrorHandler(app: FastifyInstance): void {
   app.addSchema({
     $id: "error",
@@ -39,17 +59,21 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     const status = err.statusCode ?? 500;
-    const code = err.code ?? (status >= 500 ? "internal" : "error");
 
     if (status >= 500) {
       req.log.error(err);
+      return reply.code(status).send({
+        error: { code: "internal", message: "internal server error" },
+      });
     }
 
+    const code =
+      typeof err.code === "string" && SLUG_RE.test(err.code)
+        ? err.code
+        : (STATUS_SLUGS[status] ?? "error");
+
     return reply.code(status).send({
-      error: {
-        code,
-        message: status >= 500 ? "internal server error" : err.message,
-      },
+      error: { code, message: err.message },
     });
   });
 

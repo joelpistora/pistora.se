@@ -13,6 +13,12 @@ interface FilesQuery {
   recursive?: string;
 }
 
+/** In-progress upload files: `.upload-<uuid>.part`, written into the destination
+ * directory then atomically renamed. Listed nowhere and swept on the next
+ * listing of the directory they're in. */
+const UPLOAD_TEMP_PREFIX = ".upload-";
+const UPLOAD_TEMP_RE = /^\.upload-[0-9a-fA-F-]+\.part$/;
+
 /**
  * Lenient flag parsing for query params: `?stat`, `?stat=1`, `?stat=true` are
  * all true; `?stat=0` / `?stat=false` / absent are false. (ajv's `coerceTypes`
@@ -131,6 +137,12 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       );
     }
 
+    // Multi-file uploads are NOT atomic as a batch: each part is renamed into
+    // place as it finishes, so if part N fails (size limit, write error) parts
+    // 1..N-1 stay committed and only the error for part N reaches the client.
+    // `created` is returned on success; on failure the client must re-list to
+    // see what landed. Acceptable for Phase 1 — revisit if bulk upload needs
+    // all-or-nothing.
     const created: FileEntry[] = [];
     for await (const part of request.files()) {
       const name = path.basename(part.filename ?? "");
@@ -138,7 +150,10 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
         throw app.httpErrors.badRequest("each uploaded file needs a valid filename");
       }
       const targetAbs = app.storage.resolve(path.posix.join(rel, name));
-      const tmpAbs = path.join(path.dirname(targetAbs), `.upload-${randomUUID()}.part`);
+      const tmpAbs = path.join(
+        path.dirname(targetAbs),
+        `${UPLOAD_TEMP_PREFIX}${randomUUID()}.part`,
+      );
 
       try {
         await pipeline(part.file, fs.createWriteStream(tmpAbs, { flags: "wx" }));
@@ -206,7 +221,9 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    await fsp.rm(abs, { recursive, force: false });
+    // `fs.rm` rejects any directory unless `recursive` is set — but by here an
+    // unflagged directory has been verified empty, so recursing is safe.
+    await fsp.rm(abs, { recursive: recursive || stats.isDirectory(), force: false });
     reply.code(204);
     return null;
   }
@@ -238,21 +255,27 @@ function normaliseRel(rel: string): string {
 
 async function listDirectory(abs: string, rel: string): Promise<DirListing> {
   const dirents = await fsp.readdir(abs, { withFileTypes: true });
-  const entries: FileEntry[] = [];
 
-  for (const dirent of dirents) {
-    // Skip symlinks and anything that isn't a plain file or directory —
-    // the API only exposes regular files and folders.
-    if (dirent.isSymbolicLink() || (!dirent.isFile() && !dirent.isDirectory())) {
-      continue;
-    }
-    try {
-      const s = await fsp.stat(path.join(abs, dirent.name));
-      entries.push(toEntry(dirent.name, s));
-    } catch {
-      // entry vanished between readdir and stat — skip it
-    }
-  }
+  const visible = dirents.filter(
+    (d) =>
+      // Only regular files and directories; no symlinks or specials.
+      !d.isSymbolicLink() &&
+      (d.isFile() || d.isDirectory()) &&
+      // Hide in-progress / orphaned upload temp files.
+      !UPLOAD_TEMP_RE.test(d.name),
+  );
+
+  const settled = await Promise.all(
+    visible.map(async (d) => {
+      try {
+        return toEntry(d.name, await fsp.stat(path.join(abs, d.name)));
+      } catch {
+        // entry vanished between readdir and stat — drop it
+        return null;
+      }
+    }),
+  );
+  const entries = settled.filter((e): e is FileEntry => e !== null);
 
   entries.sort((a, b) => {
     if (a.type !== b.type) return a.type === "directory" ? -1 : 1;

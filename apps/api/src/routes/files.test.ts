@@ -100,8 +100,37 @@ test("delete refuses a non-empty dir without ?recursive", async (t) => {
   await seedFile(app, "box", "a.txt", "a");
   const res = await app.inject({ method: "DELETE", url: "/api/files/box" });
   assert.equal(res.statusCode, 409);
+  assert.equal(res.json().error.code, "conflict");
   const ok = await app.inject({ method: "DELETE", url: "/api/files/box?recursive=1" });
   assert.equal(ok.statusCode, 204);
+});
+
+test("delete removes an empty dir without ?recursive", async (t) => {
+  const { app, root } = await makeApp(t);
+  await app.inject({ method: "POST", url: "/api/dirs/empty" });
+  const res = await app.inject({ method: "DELETE", url: "/api/files/empty" });
+  assert.equal(res.statusCode, 204);
+  assert.equal(fs.existsSync(path.join(root, "empty")), false);
+});
+
+test("upload temp files are hidden from listings", async (t) => {
+  const { app, root } = await makeApp(t);
+  await app.inject({ method: "POST", url: "/api/dirs/d" });
+  await seedFile(app, "d", "real.txt", "hi");
+  fs.writeFileSync(path.join(root, "d", ".upload-deadbeef-0000.part"), "orphan");
+  const res = await app.inject({ method: "GET", url: "/api/files/d" });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(
+    res.json().entries.map((e: { name: string }) => e.name),
+    ["real.txt"],
+  );
+});
+
+test("missing path is a not_found envelope", async (t) => {
+  const { app } = await makeApp(t);
+  const res = await app.inject({ method: "GET", url: "/api/files/nope.txt" });
+  assert.equal(res.statusCode, 404);
+  assert.equal(res.json().error.code, "not_found");
 });
 
 test("delete refuses the storage root", async (t) => {

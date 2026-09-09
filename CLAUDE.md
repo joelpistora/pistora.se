@@ -203,6 +203,10 @@ Open questions). Auth work is Phase 4. The tunnel/DNS work runs in parallel.
 - Storage API has no auth, no quota, no rate limiting, no Range-request support
   yet, and one shared namespace (no per-user dirs). All deliberate for Phase 1;
   `storage.forUser()` is the seam auth slots into.
+- Multi-file uploads are not atomic as a batch — a failure partway leaves the
+  earlier files committed and returns only the failing part's error (see
+  DECISIONS.md → "Upload durability"). Fine for Phase 1; revisit if bulk upload
+  needs all-or-nothing.
 
 ## Background on the developer (relevant to how we work together)
 

@@ -105,12 +105,21 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   for per-user isolation when auth arrives (Phase 4).
 - **Added deps:** `@fastify/multipart` (streaming upload — the reason Fastify was
   chosen) and `@fastify/sensible` (for the `httpErrors.*` vocabulary). Error
-  envelope is one shape everywhere: `{ error: { code, message } }`.
+  envelope is one shape everywhere: `{ error: { code, message } }`, where `code`
+  is a stable slug the frontend can branch on — `PathError`'s own codes,
+  `validation`, or the HTTP status mapped to a slug (`not_found`, `conflict`,
+  `payload_too_large`, …); any 5xx collapses to `internal` with the detail
+  logged, not returned.
 - **Upload durability:** each part is streamed via `pipeline` to a
   `.upload-<uuid>.part` file **in the destination directory**, then atomically
   `rename`d into place (same-filesystem swap; readers never see a half-written
   file). `part.file.truncated` after the pipe → 413 + temp file removed.
-  Overwrite-on-upload is allowed in Phase 1.
+  Overwrite-on-upload is allowed in Phase 1. A multi-file upload is **not
+  atomic as a batch** — parts are committed one at a time, so a failure on
+  part N leaves parts 1..N-1 written and returns only that part's error; the
+  client must re-list to see what landed. Accepted for Phase 1. Orphaned
+  `.upload-*.part` files (hard crash mid-write) are filtered out of directory
+  listings.
 - **Download:** `fs.createReadStream` + explicit `Content-Length` /
   `Content-Type` (hand-rolled `src/mime.ts`, ~45 entries, octet-stream
   fallback) / `Content-Disposition` (ASCII + RFC 5987). CORS `exposedHeaders`

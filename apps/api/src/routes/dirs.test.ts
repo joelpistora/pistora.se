@@ -23,7 +23,7 @@ test("POST /api/dirs/ (no name) is a 400", async (t) => {
   const { app } = await makeApp(t);
   const res = await app.inject({ method: "POST", url: "/api/dirs/" });
   assert.equal(res.statusCode, 400);
-  assert.equal(res.json().error.code, "error");
+  assert.equal(res.json().error.code, "bad_request");
 });
 
 test("POST /api/dirs/* rejects traversal", async (t) => {
