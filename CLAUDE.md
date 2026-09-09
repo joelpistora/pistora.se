@@ -47,9 +47,20 @@ Root `package.json` is a coordinator only (`private`, no deps) — its scripts
 forward to the workspaces.
 
 - **`apps/web`** — Next.js 15 App Router frontend (React 19, TS, Tailwind v4).
-  - `src/app/` — routes: `/` (`page.tsx`), plus `error.tsx` and `not-found.tsx`.
-    Portfolio scaffold (`/projects`, `/contact`, `Navbar`, `Footer`) stripped in
-    Phase 2.
+  **Fully client-side** — no Server Components fetch API data, so `next build`
+  emits a static site to `out/` (`output: "export"` in `next.config.ts`).
+  - `src/app/` — routes: `/` (landing: wordmark + `<ApiStatus>` live ping +
+    "Open files" link) and `/files` (the file browser), plus `error.tsx` /
+    `not-found.tsx`. Portfolio scaffold (`/projects`, `/contact`, `Navbar`,
+    `Footer`) was stripped in Phase 2.
+  - `src/app/files/page.tsx` — thin Server Component; wraps `<FileBrowser>` in
+    `<Suspense>` (required — `FileBrowser` uses `useSearchParams`).
+  - `src/components/` — `FileBrowser` (owns path from `?path=`, selection, upload
+    state), `Breadcrumbs`, `FileTable` (Name/Size/Modified; folder row →
+    navigate, file row → select → Download link), `UploadButton` (one file,
+    into the current folder), `ApiStatus`.
+  - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
+  - `src/lib/format.ts` — `formatSize` / `formatDate`.
   - `src/app/layout.tsx` — minimal root layout: Geist fonts on `<html>`, no
     chrome; pages own their layout. `src/app/favicon.ico` (App Router
     auto-serves it). `src/app/styles/globals.css` — Tailwind v4 only
@@ -62,8 +73,8 @@ forward to the workspaces.
     `apps/web/env.example`) — **inlined at build time**, so production builds
     must set it. Import from `@/lib/api`.
   - `@/*` path alias → `apps/web/src/*`.
-  - `next.config.ts` sets `outputFileTracingRoot` to the repo root so
-    production builds trace workspace files correctly.
+  - `next.config.ts` sets `outputFileTracingRoot` to the repo root; `output:
+    "export"` + `images.unoptimized` for the static build.
   - TS config: `noEmit` (Next compiles), `target ES2017`, `moduleResolution
     bundler`.
 - **`apps/api`** — Fastify 5 backend (TypeScript, ESM, `"type": "module"`).
@@ -76,6 +87,8 @@ forward to the workspaces.
     `@fastify/multipart`, the error handler, and the route plugins.
   - `src/config.ts` — `AppConfig` + `loadConfig()`; fails fast if `STORAGE_ROOT`
     is missing or not a directory. `buildApp` never reads `process.env`.
+    `corsOrigins` is `(string | RegExp)[]`: unset `CORS_ORIGINS` → pistora.se +
+    any loopback origin/port (dev); set → that exact list (prod).
   - `src/storage.ts` — `createStorage(root)`: the path-safety primitive.
     `resolve()` turns a client path into an absolute path guaranteed inside the
     root (lexical `..` check + symlink-escape check) or throws `PathError`.
@@ -178,9 +191,10 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       when it arrives. Auth is deliberately Phase 4.
 - [ ] **Phase 1a – Mount real 5TB drive:** update the storage api to target the  real 5TB storage drive
 - [~] **Phase 2 – Frontend integration locally (in progress):** web app ↔ backend
-      over LAN, upload/download working end-to-end. Foundation done (scaffold
-      stripped, `packages/shared` live, typed `apps/web/src/lib/api/` client).
-      Left: the file-browser UI + the end-to-end proof.
+      over LAN, upload/download working end-to-end. Foundation + a minimal
+      client-side file browser (`/files`: browse, breadcrumbs, single-file
+      upload, download) are done. Left: exercise it locally end-to-end; then
+      delete / new-folder / drag-drop in a follow-up.
 - [~] **Phase 3 – Expose to the internet (partially done):** static page is
       live on pistora.se and a Cloudflare **quick** tunnel to the home API is
       proven end-to-end. Left: a *stable* named tunnel at `api.pistora.se`
@@ -188,8 +202,9 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 - [ ] **Phase 4 – Extras:** sync with iCloud/Google, authentication/
       security, polish
 
-**Where we are right now:** **Phase 0 done; Phase 1 done & merged. Phase 2
-foundation done — file-browser UI is next.**
+**Where we are right now:** **Phase 0 done; Phase 1 done & merged. Phase 2:
+foundation + minimal file-browser UI built (unmerged, branch
+`phase-2-foundation`) — needs a local end-to-end run-through.**
 - `apps/api` (Fastify 5 + TS): storage endpoints under `/api/files` +
   `/api/dirs` (list / upload / download / delete / mkdir, nested folders,
   streaming multipart, atomic-rename writes), a hardened path-safety helper
@@ -198,11 +213,14 @@ foundation done — file-browser UI is next.**
   No auth yet — Phase 4. Serves a placeholder `STORAGE_ROOT` (`~/pistora-storage`)
   until the drive arrives. Full API surface + module map: see "Codebase
   structure → `apps/api`" above.
-- `apps/web`: portfolio scaffold stripped (no `/projects`, `/contact`, `Navbar`,
-  `Footer`); minimal `layout.tsx` (Geist wiring fixed) + placeholder `/`;
-  `globals.css` reconciled to Tailwind v4. Typed API client at `src/lib/api/`
-  (smoke-tested against the live API: mkdir → upload → list → stat → download →
-  delete → 404). No UI yet.
+- `apps/web`: portfolio scaffold stripped; minimal `layout.tsx` (Geist wiring
+  fixed); `globals.css` reconciled to Tailwind v4; `output: "export"` (static
+  build to `out/`). Typed API client at `src/lib/api/` (smoke-tested: mkdir →
+  upload → list → stat → download → delete → 404). **UI:** `/` landing with a
+  live API-status ping; `/files` file browser — table listing, breadcrumb
+  navigation via `?path=`, folder-click to descend, file select → Download,
+  single-file upload into the current folder. Plain-text loading/empty/error
+  states. No delete/new-folder/drag-drop yet.
 - `packages/shared`: created, holds the storage DTOs + `ErrorCode`; consumed as
   source by both apps, no build step. First real use of the workspace.
 - Hosting mechanics proven: static files reach pistora.se via MSPControl File
@@ -223,23 +241,32 @@ the nameservers.
 3. ~~Typed API client in `apps/web` (`src/lib/api/`).~~ **Done** — `fetch`
    wrapper over `/api/files` + `/api/dirs`, `ApiError`/`NetworkError`, base URL
    from `NEXT_PUBLIC_API_BASE`.
-4. **(next) File-browser UI:** directory listing + breadcrumbs, upload
-   (drag-drop → multipart POST), download links, delete, new-folder.
-5. Run both dev servers (`npm run dev` + `npm run dev:api`, needs
+4. ~~File-browser UI~~ **Done (v1):** `/files` — table listing + breadcrumbs
+   (`?path=`), folder navigation, single-file upload, download. **Deferred to a
+   follow-up:** delete, new-folder, drag-drop, upload progress, multi-select.
+5. **(next)** Run both dev servers (`npm run dev` + `npm run dev:api`, needs
    `apps/api/.env`), prove upload/download end-to-end over `localhost`.
 
-CORS already allows `http://localhost:3000`, so LAN dev needs no API change.
+In dev (no `CORS_ORIGINS` set) the API allows pistora.se + **any**
+`http(s)://localhost:<port>` / `127.0.0.1`, so it doesn't matter which port Next
+lands on. Setting `CORS_ORIGINS` (prod) switches to an exact allowlist, no
+localhost fallback.
 When the WD Elements 5TB arrives: plug into Windows, point `STORAGE_ROOT` at
 `/mnt/d/pistora` (see Open questions). Auth is Phase 4. Tunnel/DNS runs in
 parallel.
 
 **Known issues / follow-ups:**
-- `apps/web` has no file-browser UI yet — just a placeholder `/` and the typed
-  `src/lib/api/` client. That UI + the end-to-end upload/download proof are the
-  rest of Phase 2.
+- File-browser UI is v1 only — no delete, new-folder, drag-drop, upload
+  progress, or multi-select yet. Desktop-first (table scrolls on mobile, no
+  dedicated small-screen layout). Follow-up job.
 - `NEXT_PUBLIC_API_BASE` is inlined into the `apps/web` bundle at build time. A
   production build with it unset silently bakes in `http://localhost:3001`; set
   it to `https://api.pistora.se` for prod (real fix belongs to the deploy phase).
+- Deploying `apps/web` to pistora.se (Phase 3): `next build` → upload the
+  contents of `apps/web/out/` to `wwwroot/` over FTPS like `index.html`. Blocked
+  on: a public API URL (tunnel/DNS), IIS routing for `/files` → `files.html`
+  (`trailingSlash: true` or a `web.config` rewrite), and deciding app-at-apex vs
+  keeping the holding page.
 - `packages/shared` runtime-elision footgun: `apps/api` prod only works because
   the `shared` import is type-only. `verbatimModuleSyntax` guards it; a
   `grep -rn 'from "shared"' apps/api/dist` after a build should stay empty.

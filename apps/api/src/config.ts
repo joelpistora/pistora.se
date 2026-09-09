@@ -15,14 +15,21 @@ export interface AppConfig {
   maxFileBytes: number;
   /** Max files accepted in a single multipart upload request. */
   maxFilesPerUpload: number;
-  corsOrigins: string[];
+  /** Passed straight to `@fastify/cors` `origin` — strings and/or RegExps. */
+  corsOrigins: (string | RegExp)[];
   logger: boolean;
 }
 
-const DEFAULT_CORS_ORIGINS = [
-  "https://pistora.se",
-  "https://www.pistora.se",
-  "http://localhost:3000",
+const DEFAULT_CORS_ORIGINS = ["https://pistora.se", "https://www.pistora.se"];
+
+/**
+ * Any loopback origin, on any port. Added to the default allowlist so a local
+ * `npm run dev` works whatever port Next lands on (it bumps to 3001, 3002, …
+ * when 3000 is taken). Dropped when `CORS_ORIGINS` is set explicitly (prod).
+ */
+const LOOPBACK_ORIGINS = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
 ];
 
 const GiB = 1024 * 1024 * 1024;
@@ -57,10 +64,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     storageRoot,
     maxFileBytes: Number(env.MAX_FILE_BYTES) || 5 * GiB,
     maxFilesPerUpload: Number(env.MAX_FILES_PER_UPLOAD) || 20,
-    corsOrigins:
-      env.CORS_ORIGINS?.split(",")
-        .map((s) => s.trim())
-        .filter(Boolean) ?? DEFAULT_CORS_ORIGINS,
+    corsOrigins: env.CORS_ORIGINS
+      ? env.CORS_ORIGINS.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [...DEFAULT_CORS_ORIGINS, ...LOOPBACK_ORIGINS],
     logger: env.LOG !== "off",
   };
 }

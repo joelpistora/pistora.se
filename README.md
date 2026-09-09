@@ -91,7 +91,9 @@ node --import tsx --test --test-name-pattern "traversal" apps/api/src/routes/fil
 
 ## Deployment (target)
 
-The `apps/web` build is served statically from pistora.se. `apps/api` runs on
-a home machine (WSL2 on Windows 11) and is reached from the frontend via
+`apps/web` is a static export (`next build` → `apps/web/out/`, a plain folder of
+HTML/JS) served from pistora.se — no Node runtime on the host. `apps/api` runs on
+a home machine (WSL2 on Windows 11) and is reached from the browser via
 `api.pistora.se`, bridged by a tunnel rather than port forwarding. The two
-deploy independently.
+deploy independently. The API base URL is baked into the web build at build time
+(`NEXT_PUBLIC_API_BASE`).

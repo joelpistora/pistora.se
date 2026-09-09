@@ -192,3 +192,31 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   hooks/components yet** — that plus the end-to-end proof is the rest of Phase 2.
   Smoke-tested against the live API: mkdir → upload → list → stat → download →
   recursive delete → 404, plus client-side `..` rejection.
+- **Minimal file-browser UI built (v1).** `/` is a landing page (wordmark +
+  `<ApiStatus>` live ping + "Open files" link); `/files` is the browser. Design
+  choices (from a 15-question interview): **table listing** (Name/Size/Modified,
+  folders first), **no header chrome** (breadcrumbs + Upload inline above the
+  list), folder navigation on a **single `/files` page** with the current folder
+  in `?path=` (so refresh/bookmark/back all work — `router.push` per hop),
+  **folder rows navigate on click**, **file rows select** and reveal a Download
+  link, **button-only single-file upload** into the current folder, **plain-text**
+  loading/empty/error states (no toast/skeleton/spinner libs), **system** light+dark
+  theme, **desktop-first** (table scrolls on mobile). Deferred to a follow-up:
+  delete, new-folder, drag-drop, upload progress, multi-select, mobile layout.
+- **Frontend is client-side only → `output: "export"`.** No Server Component
+  fetches API data; the browser calls the API directly. `next build` emits a
+  static `apps/web/out/`, deployable to pistora.se over FTPS exactly like
+  `index.html` (no Node on the host) — matches the Phase 3 hosting reality.
+  `next dev` is unchanged for local work. Chosen over server-rendered listings
+  (which would force a Node host pistora.se can't provide). `useSearchParams`
+  therefore needs a `<Suspense>` boundary in `/files`.
+- **Dev CORS = any loopback origin.** `next dev` bumps to 3001/3002/… when 3000
+  is taken, which silently broke API calls (only `http://localhost:3000` was
+  allowlisted → browser blocked the cross-origin fetch → "API unreachable").
+  `loadConfig` now, when `CORS_ORIGINS` is unset, allows pistora.se +
+  `/^https?:\/\/localhost(:\d+)?$/` + the `127.0.0.1` equivalent. Setting
+  `CORS_ORIGINS` (prod) opts back into an exact string allowlist. `corsOrigins`
+  widened to `(string | RegExp)[]` (passed straight to `@fastify/cors`).
+- **Global home button.** `HomeButton` (`usePathname`, hidden on `/`) is a fixed
+  house icon top-left in `layout.tsx` — the way back to the landing page from
+  `/files` and the error/404 pages.
