@@ -43,6 +43,8 @@ next-env.d.ts
 
 # claude code
 .claude/settings.local.json
+.claude/*
+!.claude/settings.json
 
 # cloudflared tunnel — credentials & local config live in ~/.cloudflared,
 # never in the repo. This guards against a stray copy.
