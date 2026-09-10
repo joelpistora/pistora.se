@@ -1,4 +1,5 @@
 import fsp from "node:fs/promises";
+import path from "node:path";
 import type { FastifyPluginAsync } from "fastify";
 import type {
   AdminUser,
@@ -9,6 +10,7 @@ import type {
 } from "shared";
 import { generateOtp, generateUserId, hashPassword } from "../auth/crypto.js";
 import { deleteSessionsForUser } from "../db/sessions.js";
+import { dirSize } from "../fs-usage.js";
 import {
   countAdmins,
   createUser,
@@ -30,7 +32,7 @@ const MAX_QUOTA_BYTES = 5 * 1024 * 1024 * 1024 * 1024; // 5 TiB
 /** How long an invited / reset one-time password stays usable. */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-function toAdminUser(row: UserRow): AdminUser {
+function toAdminUser(row: UserRow, usedBytes: number): AdminUser {
   return {
     id: row.id,
     email: row.email,
@@ -38,6 +40,7 @@ function toAdminUser(row: UserRow): AdminUser {
     status: row.status,
     mustChangePassword: row.must_change_password,
     quotaBytes: row.quota_bytes,
+    usedBytes,
     createdAt: new Date(row.created_at).toISOString(),
     lastLoginAt:
       row.last_login_at == null ? null : new Date(row.last_login_at).toISOString(),
@@ -48,7 +51,7 @@ const adminUserSchema = {
   type: "object",
   required: [
     "id", "email", "role", "status", "mustChangePassword", "quotaBytes",
-    "createdAt", "lastLoginAt",
+    "usedBytes", "createdAt", "lastLoginAt",
   ],
   additionalProperties: false,
   properties: {
@@ -58,6 +61,7 @@ const adminUserSchema = {
     status: { type: "string", enum: ["active", "disabled"] },
     mustChangePassword: { type: "boolean" },
     quotaBytes: { type: "integer" },
+    usedBytes: { type: "integer" },
     createdAt: { type: "string" },
     lastLoginAt: { type: ["string", "null"] },
   },
@@ -101,6 +105,16 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  /**
+   * Bytes currently stored in a user's folder — an on-demand walk of
+   * `users/<email>/`, same as `GET /api/usage` does for the caller. Admins have
+   * no folder, so 0. Missing folder → 0 (`dirSize` tolerates it).
+   */
+  const usedBytesFor = (row: UserRow): Promise<number> =>
+    row.role === "admin"
+      ? Promise.resolve(0)
+      : dirSize(path.join(app.storage.root, "users", row.email));
+
   // ---- GET /api/admin/users ---------------------------------------------
 
   app.get(
@@ -119,7 +133,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (): Promise<AdminUserListResponse> => {
-      return { users: listUsers(app.db).map(toAdminUser) };
+      const users = await Promise.all(
+        listUsers(app.db).map(async (row) => toAdminUser(row, await usedBytesFor(row))),
+      );
+      return { users };
     },
   );
 
@@ -173,7 +190,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       await app.mailer.sendInvite({ to: email, otp });
 
       reply.code(201);
-      const user = toAdminUser(getUserById(app.db, id)!);
+      const user = toAdminUser(getUserById(app.db, id)!, 0); // folder just created, empty
       return app.config.exposeInviteOtp ? { user, otp } : { user };
     },
   );
@@ -202,6 +219,14 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     async (req): Promise<{ user: AdminUser }> => {
       const target = getUserById(app.db, req.params.id);
       if (!target) throw app.httpErrors.notFound("no such user");
+
+      // A quota can't be pulled below what the user has already stored.
+      const used = await usedBytesFor(target);
+      if (req.body.quotaBytes != null && req.body.quotaBytes < used) {
+        throw app.httpErrors.conflict(
+          `quota can't be set below the user's current usage (${used} bytes)`,
+        );
+      }
 
       const nextRole: Role = req.body.role ?? target.role;
       const nextStatus: UserStatus = req.body.status ?? target.status;
@@ -233,7 +258,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         setQuota(app.db, target.id, req.body.quotaBytes, now);
       }
 
-      return { user: toAdminUser(getUserById(app.db, target.id)!) };
+      const updated = getUserById(app.db, target.id)!;
+      return { user: toAdminUser(updated, await usedBytesFor(updated)) };
     },
   );
 
@@ -264,7 +290,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       deleteSessionsForUser(app.db, target.id);
       await app.mailer.sendInvite({ to: target.email, otp });
 
-      const user = toAdminUser(getUserById(app.db, target.id)!);
+      const updated = getUserById(app.db, target.id)!;
+      const user = toAdminUser(updated, await usedBytesFor(updated));
       return app.config.exposeInviteOtp ? { user, otp } : { user };
     },
   );

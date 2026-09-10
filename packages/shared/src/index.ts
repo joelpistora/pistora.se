@@ -81,6 +81,8 @@ export interface AdminUser {
   status: UserStatus;
   mustChangePassword: boolean;
   quotaBytes: number;
+  /** Current on-disk footprint of the user's folder, in bytes. Always 0 for admins (no folder). */
+  usedBytes: number;
   /** ISO 8601. */
   createdAt: string;
   /** ISO 8601, or null if the user has never logged in. */

@@ -264,3 +264,15 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   created + modified timestamps. Read-only.
 - **New folder = an inline toggle-form** next to Upload (not a `window.prompt`).
   Calls the existing `POST /api/dirs` (`mkdir -p`, idempotent).
+
+## Admin: per-user storage usage (2026-09-10)
+
+- **`AdminUser` gained `usedBytes`.** `GET /api/admin/users` now walks each
+  user's `users/<email>/` folder (`dirSize`, same on-demand walk as
+  `GET /api/usage`) and the admin table shows **`used / limit`** per row instead
+  of just the limit. Admins themselves show `usedBytes: 0` (no folder). Cost:
+  one recursive walk per user per page load — fine at this scale; revisit with a
+  cached total if a folder ever holds tens of thousands of files.
+- **A quota can't be set below current usage.** `PATCH /api/admin/users/:id`
+  with a `quotaBytes` under the user's stored bytes → `409`. The editor checks
+  it client-side first (friendly message); the 409 is the backstop.

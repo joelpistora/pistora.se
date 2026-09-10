@@ -11,15 +11,21 @@ import {
   type Role,
 } from "@/lib/api";
 import { authErrorMessage } from "@/lib/authErrors";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatSize } from "@/lib/format";
 
 const FIELD =
   "rounded border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-foreground/50";
 
 const GiB = 1024 * 1024 * 1024;
 const toGiB = (bytes: number) => Math.round((bytes / GiB) * 100) / 100;
+/** `formatSize` renders 0 as an em dash; here we want a real "0 bytes". */
+const fmtBytes = (n: number) => (n <= 0 ? "0 bytes" : formatSize(n));
 
-/** Inline GB editor for a user's quota. Admins have no quota to show. */
+/**
+ * Storage cell: shows `used / limit` and, on click, an inline GB editor for the
+ * limit. The new limit can't be set below what the user already stores (the API
+ * enforces this too, with a 409). Admins have no quota — shown as unlimited.
+ */
 function QuotaEditor({
   user,
   disabled,
@@ -31,54 +37,92 @@ function QuotaEditor({
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(toGiB(user.quotaBytes)));
+  const [err, setErr] = useState<string | null>(null);
 
   if (user.role === "admin") {
-    return <span className="text-foreground/40">— (unlimited)</span>;
+    return (
+      <span className="text-foreground/40">
+        {fmtBytes(user.usedBytes)} / — (unlimited)
+      </span>
+    );
   }
+
   if (!editing) {
     return (
       <button
         type="button"
         disabled={disabled}
+        title="Click to change the limit"
         onClick={() => {
           setValue(String(toGiB(user.quotaBytes)));
+          setErr(null);
           setEditing(true);
         }}
-        className="underline-offset-2 hover:underline disabled:opacity-50"
+        className="tabular-nums underline-offset-2 hover:underline disabled:opacity-50"
       >
-        {toGiB(user.quotaBytes)} GB
+        {fmtBytes(user.usedBytes)} / {fmtBytes(user.quotaBytes)}
       </button>
     );
   }
+
+  function save() {
+    const gb = Number(value);
+    if (!Number.isFinite(gb) || gb < 0) {
+      setErr("Enter a number.");
+      return;
+    }
+    const bytes = Math.round(gb * GiB);
+    if (bytes < user.usedBytes) {
+      setErr(`Can't go below ${fmtBytes(user.usedBytes)} — that's what they've stored.`);
+      return;
+    }
+    setEditing(false);
+    setErr(null);
+    onSave(bytes);
+  }
+
   return (
-    <span className="flex items-center gap-1">
-      <input
-        type="number"
-        min={0}
-        step={0.1}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="w-16 rounded border border-foreground/20 bg-background px-1.5 py-0.5 text-xs"
-      />
-      GB
-      <button
-        type="button"
-        onClick={() => {
-          const gb = Number(value);
-          if (Number.isFinite(gb) && gb >= 0) onSave(Math.round(gb * GiB));
-          setEditing(false);
-        }}
-        className="rounded border border-foreground/20 px-1.5 py-0.5 text-xs hover:bg-foreground/10"
-      >
-        Save
-      </button>
-      <button
-        type="button"
-        onClick={() => setEditing(false)}
-        className="text-xs text-foreground/50 hover:text-foreground"
-      >
-        Cancel
-      </button>
+    <span className="flex flex-col gap-1">
+      <span className="flex items-center gap-1">
+        <input
+          type="number"
+          min={0}
+          step={0.1}
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") {
+              setEditing(false);
+              setErr(null);
+            }
+          }}
+          className="w-16 rounded border border-foreground/20 bg-background px-1.5 py-0.5 text-xs"
+        />
+        GB
+        <button
+          type="button"
+          onClick={save}
+          className="rounded border border-foreground/20 px-1.5 py-0.5 text-xs hover:bg-foreground/10"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            setErr(null);
+          }}
+          className="text-xs text-foreground/50 hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </span>
+      <span className="text-xs text-foreground/50">
+        {fmtBytes(user.usedBytes)} stored
+      </span>
+      {err && <span className="text-xs text-red-600">{err}</span>}
     </span>
   );
 }
@@ -302,7 +346,9 @@ export default function AdminUsers() {
                   <th className="py-2 pr-6 font-medium">Email</th>
                   <th className="py-2 pr-6 font-medium">Role</th>
                   <th className="py-2 pr-6 font-medium">Status</th>
-                  <th className="py-2 pr-6 font-medium">Storage&nbsp;limit</th>
+                  <th className="py-2 pr-6 font-medium whitespace-nowrap">
+                    Storage&nbsp;(used&nbsp;/&nbsp;limit)
+                  </th>
                   <th className="py-2 pr-6 font-medium whitespace-nowrap">Last sign-in</th>
                   <th className="py-2 text-right font-medium">Actions</th>
                 </tr>

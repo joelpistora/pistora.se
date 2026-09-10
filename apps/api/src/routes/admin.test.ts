@@ -334,6 +334,62 @@ test("PATCH quotaBytes: updates the user's ceiling and shows up on their /me", a
   assert.equal(bad.statusCode, 400);
 });
 
+test("GET /users reports each user's stored bytes; admins show 0", async (t) => {
+  const { app, cookie } = await makeAdminApp(t);
+  const u = seedUser(app, { email: "stored@example.com" });
+  const uCookie = await loginCookie(app, u.email, u.password);
+  const mb = multipartBody([{ filename: "f.txt", content: "1234567890" }]);
+  await app.inject({
+    method: "POST",
+    url: "/api/files/",
+    payload: mb.payload,
+    headers: { cookie: uCookie, ...mb.headers },
+  });
+
+  const res = await app.inject({
+    method: "GET",
+    url: "/api/admin/users",
+    headers: { cookie },
+  });
+  assert.equal(res.statusCode, 200);
+  const rows: { email: string; role: string; usedBytes: number }[] = res.json().users;
+  assert.equal(rows.find((r) => r.email === "stored@example.com")!.usedBytes, 10);
+  assert.equal(rows.find((r) => r.role === "admin")!.usedBytes, 0);
+});
+
+test("PATCH quotaBytes: refuses a limit below what the user already stores", async (t) => {
+  const { app, cookie } = await makeAdminApp(t);
+  const u = seedUser(app, { email: "packed@example.com", quotaBytes: 1000 });
+  const uCookie = await loginCookie(app, u.email, u.password);
+  const mb = multipartBody([{ filename: "big.bin", content: "x".repeat(400) }]);
+  await app.inject({
+    method: "POST",
+    url: "/api/files/",
+    payload: mb.payload,
+    headers: { cookie: uCookie, ...mb.headers },
+  });
+
+  const tooLow = await app.inject({
+    method: "PATCH",
+    url: `/api/admin/users/${u.id}`,
+    headers: { cookie },
+    payload: { quotaBytes: 300 },
+  });
+  assert.equal(tooLow.statusCode, 409);
+  assert.equal(tooLow.json().error.code, "conflict");
+
+  // exactly at current usage is allowed
+  const ok = await app.inject({
+    method: "PATCH",
+    url: `/api/admin/users/${u.id}`,
+    headers: { cookie },
+    payload: { quotaBytes: 400 },
+  });
+  assert.equal(ok.statusCode, 200);
+  assert.equal(ok.json().user.quotaBytes, 400);
+  assert.equal(ok.json().user.usedBytes, 400);
+});
+
 test("DELETE removes the account, its sessions, and its folder", async (t) => {
   const { app, root, cookie } = await makeAdminApp(t);
   const victim = seedUser(app, { email: "gone@example.com" });
