@@ -15,6 +15,7 @@ export {
 export { encodePath } from "./paths";
 export {
   request,
+  setUnauthorizedHandler,
   getHealth,
   ping,
   listDir,
@@ -26,6 +27,16 @@ export {
   deleteEntry,
   makeDir,
 } from "./client";
+export {
+  login,
+  logout,
+  getMe,
+  changePassword,
+  listUsers,
+  createUser,
+  updateUser,
+  resetOtp,
+} from "./auth";
 export type {
   HealthResponse,
   PingResponse,
@@ -41,4 +52,11 @@ export type {
   FileMetadata,
   ErrorEnvelope,
   ErrorCode,
+  AuthUser,
+  Role,
+  UserStatus,
+  SessionResponse,
+  AdminUser,
+  AdminUserListResponse,
+  CreateUserResponse,
 } from "shared";

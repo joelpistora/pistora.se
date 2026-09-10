@@ -9,7 +9,7 @@ export default function Home() {
       <ApiStatus />
 
       <div className="flex w-full max-w-xs flex-col gap-3">
-        {/* Files app. Will sit behind auth in a later phase. */}
+        {/* Auth-gated: /files bounces to /login when signed out. */}
         <Link
           href="/files"
           className="rounded bg-foreground px-5 py-2.5 text-background transition hover:opacity-90"

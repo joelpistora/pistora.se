@@ -48,6 +48,10 @@ export function useDirectory(path: string): UseDirectory {
           setError(
             `Can't reach the API at ${API_BASE} — is the backend running (npm run dev:api)?`,
           );
+        } else if (err instanceof ApiError && err.status === 401) {
+          setError("Your session ended — taking you to sign in…");
+        } else if (err instanceof ApiError && err.code === "password_change_required") {
+          setError("You need to set a new password first…");
         } else if (err instanceof ApiError) {
           setError(err.message);
         } else {

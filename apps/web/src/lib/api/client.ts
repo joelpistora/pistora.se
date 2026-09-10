@@ -82,10 +82,23 @@ async function errorFrom(res: Response): Promise<ApiError> {
 
 async function doFetch(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, init);
+    // `credentials: "include"` sends the session cookie cross-origin
+    // (pistora.se → api.pistora.se). The API allowlists the origin + sets
+    // Access-Control-Allow-Credentials, so this is not a wildcard CORS hole.
+    return await fetch(url, { credentials: "include", ...init });
   } catch (e) {
     throw new NetworkError(`request to ${url} failed`, e);
   }
+}
+
+/**
+ * Called whenever the API answers 401. The app sets this to clear its cached
+ * user so route guards bounce to `/login`. Kept as a plain callback so this
+ * module stays free of any `next/*` / `react` import.
+ */
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn;
 }
 
 interface RequestInitEx extends RequestInit {
@@ -101,6 +114,7 @@ export async function request<T>(path: string, init: RequestInitEx = {}): Promis
   const url = API_BASE + path + buildQuery(query);
   const res = await doFetch(url, { cache: "no-store", ...rest });
 
+  if (res.status === 401) onUnauthorized?.();
   if (!res.ok) throw await errorFrom(res);
   if (res.status === 204) return undefined as T;
 
@@ -149,6 +163,7 @@ export async function downloadResponse(
     `/api/files/${encodePath(path)}` +
     buildQuery({ download: opts.download });
   const res = await doFetch(url, { cache: "no-store", signal: opts.signal });
+  if (res.status === 401) onUnauthorized?.();
   if (!res.ok) throw await errorFrom(res);
   return res;
 }
