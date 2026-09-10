@@ -45,9 +45,9 @@ export default function LoginForm() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="mt-1 text-sm text-foreground/60">
+        {/* <p className="mt-1 text-sm text-foreground/60">
           Pistora file storage. Accounts are created by an administrator.
-        </p>
+        </p> */}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -74,6 +74,10 @@ export default function LoginForm() {
           />
         </label>
 
+        <p className="text-sm text-foreground/60">
+          Contact administrator for an account
+        </p>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button
@@ -81,7 +85,7 @@ export default function LoginForm() {
           disabled={busy}
           className="rounded bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
         >
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? "Signing in…" : "Confirm"}
         </button>
       </form>
     </div>
