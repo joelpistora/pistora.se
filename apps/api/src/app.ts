@@ -70,6 +70,9 @@ export async function buildApp(
   await app.register(cookie);
   await app.register(cors, {
     origin: config.corsOrigins,
+    // @fastify/cors defaults to GET,HEAD,POST — spell out the rest so the
+    // browser's preflight for PATCH (admin) and DELETE (files) passes.
+    methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"],
     // Session cookie rides on cross-origin fetch() from the web app.
     credentials: true,
     // Let browser fetch() read these off download responses (cross-origin

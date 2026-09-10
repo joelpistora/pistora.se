@@ -207,35 +207,35 @@ export default function AdminUsers() {
         )}
         {users && users.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] border-collapse text-sm">
+            <table className="w-full min-w-[56rem] border-collapse text-sm">
               <thead>
-                <tr className="border-b border-foreground/15 text-left text-foreground/60">
-                  <th className="py-2 pr-4 font-medium">Email</th>
-                  <th className="py-2 pr-4 font-medium">Role</th>
-                  <th className="py-2 pr-4 font-medium">Status</th>
-                  <th className="py-2 pr-4 font-medium">Storage limit</th>
-                  <th className="py-2 pr-4 font-medium">Last sign-in</th>
+                <tr className="border-b border-foreground/15 text-left align-bottom text-foreground/60">
+                  <th className="py-2 pr-6 font-medium">Email</th>
+                  <th className="py-2 pr-6 font-medium">Role</th>
+                  <th className="py-2 pr-6 font-medium">Status</th>
+                  <th className="py-2 pr-6 font-medium">Storage&nbsp;limit</th>
+                  <th className="py-2 pr-6 font-medium whitespace-nowrap">Last sign-in</th>
                   <th className="py-2 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.id} className="border-b border-foreground/10">
-                    <td className="py-2 pr-4">
-                      {u.email}
+                  <tr key={u.id} className="border-b border-foreground/10 align-top">
+                    <td className="py-2 pr-6">
+                      <div className="whitespace-nowrap">{u.email}</div>
                       {u.mustChangePassword && (
-                        <span className="ml-2 text-xs text-foreground/50">
-                          (pending first sign-in)
+                        <span className="text-xs text-foreground/50">
+                          pending first sign-in
                         </span>
                       )}
                     </td>
-                    <td className="py-2 pr-4">{u.role}</td>
-                    <td className="py-2 pr-4">
+                    <td className="py-2 pr-6">{u.role}</td>
+                    <td className="py-2 pr-6">
                       <span className={u.status === "disabled" ? "text-red-600" : undefined}>
                         {u.status}
                       </span>
                     </td>
-                    <td className="py-2 pr-4">
+                    <td className="py-2 pr-6 whitespace-nowrap">
                       <QuotaEditor
                         user={u}
                         disabled={rowBusy === u.id}
@@ -244,7 +244,7 @@ export default function AdminUsers() {
                         }
                       />
                     </td>
-                    <td className="py-2 pr-4 text-foreground/60">
+                    <td className="py-2 pr-6 whitespace-nowrap text-foreground/60">
                       {u.lastLoginAt ? formatDate(u.lastLoginAt) : "never"}
                     </td>
                     <td className="py-2">

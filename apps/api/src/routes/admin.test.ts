@@ -46,6 +46,21 @@ test("bootstrap is a no-op when an admin already exists", async (t) => {
   assert.equal(mailer.sent.length, 0);
 });
 
+test("CORS preflight advertises PATCH and DELETE (browsers block them otherwise)", async (t) => {
+  const { app } = await makeApp(t);
+  const res = await app.inject({
+    method: "OPTIONS",
+    url: "/api/admin/users/x",
+    headers: {
+      origin: "http://localhost:3000",
+      "access-control-request-method": "PATCH",
+    },
+  });
+  const allowed = String(res.headers["access-control-allow-methods"] ?? "");
+  assert.ok(allowed.includes("PATCH"), allowed);
+  assert.ok(allowed.includes("DELETE"), allowed);
+});
+
 test("non-admins get 403 from every /api/admin route", async (t) => {
   const { app, cookie } = await makeAuthedApp(t); // a plain user
   for (const req of [
