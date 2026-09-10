@@ -137,6 +137,28 @@ export async function makeAuthedApp(
   };
 }
 
+/**
+ * `makeApp` reset to a known-empty user table, then one seeded active admin,
+ * logged in. Drops the bootstrap admin so list/count assertions start clean.
+ */
+export async function makeAdminApp(
+  t: TestContext,
+  overrides: Partial<AppConfig> = {},
+): Promise<{
+  app: FastifyInstance;
+  root: string;
+  mailer: CaptureMailer;
+  adminId: string;
+  cookie: string;
+}> {
+  const { app, root, mailer } = await makeApp(t, overrides);
+  app.db.prepare("DELETE FROM users").run();
+  mailer.sent.length = 0;
+  const admin = seedUser(app, { email: "admin@pistora.test", role: "admin" });
+  const cookie = await loginCookie(app, admin.email, admin.password);
+  return { app, root, mailer, adminId: admin.id, cookie };
+}
+
 interface FilePart {
   filename: string;
   content: string | Buffer;

@@ -10,6 +10,7 @@ import { openDb, type DatabaseSync } from "./db/index.js";
 import { deleteExpiredSessions } from "./db/sessions.js";
 import { registerErrorHandler } from "./http.js";
 import { createConsoleMailer, type Mailer } from "./mail/index.js";
+import { adminRoutes } from "./routes/admin.js";
 import { authRoutes } from "./routes/auth.js";
 import { dirRoutes } from "./routes/dirs.js";
 import { fileRoutes } from "./routes/files.js";
@@ -101,6 +102,7 @@ export async function buildApp(
     secure.addHook("onRequest", makeAuthHook(secure, { scopeStorage: true }));
     await secure.register(fileRoutes, { prefix: "/api/files" });
     await secure.register(dirRoutes, { prefix: "/api/dirs" });
+    await secure.register(adminRoutes, { prefix: "/api/admin" });
   });
 
   return app;
