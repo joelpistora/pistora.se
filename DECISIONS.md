@@ -220,3 +220,19 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
 - **Global home button.** `HomeButton` (`usePathname`, hidden on `/`) is a fixed
   house icon top-left in `layout.tsx` — the way back to the landing page from
   `/files` and the error/404 pages.
+
+## Phase 2 wrap / Phase 3–4 planning (2026-09-10)
+
+- **Phase 2 foundation done.** `packages/shared` + typed API client + v1 file
+  browser (`/files`) built and proven end-to-end: locally over LAN, and in
+  production (static `out/` uploaded to pistora.se `wwwroot/` via FTPS, driving
+  the home API through a Cloudflare quick tunnel). Branch `phase-2-foundation`
+  → `main`. Remaining Phase 2 items (delete, new-folder, drag-drop, upload
+  progress, multi-select, mobile layout) are optional polish, not blockers.
+- **Deploy gotcha recorded.** `next build` reads `apps/web/.env.local`, so the
+  deploy build only points at the public API if `.env.local` (or an explicit
+  `NEXT_PUBLIC_API_BASE=…` on the build command) carries the tunnel URL. A
+  `localhost:3001` build appears to work *only* on the machine running the API.
+  Verify: `grep -r localhost:3001 apps/web/out/_next/` must be empty.
+- **Auth = email + password authentication (possible through google).** I want to be able to control who has access to the file storage solution. The persons that are allowed in are the people that should get a personal storage location on the harddrive. When a new user is created, they get a personal folder on the storage hard drive. They are only allowed to see/edit/upload files inside that folder. All of this should happen automatically. The user folders should be either be in root of the hard drive or in some other sub folder that I have not decided yet.
+- **Adding of users.** I (Admin) should have special priveleges on the website. I should have a menu where I can add users. When I add users, an auto generated email should be sent to the users email with a one-time password. When they log in, they are forced to update their password first time. 
