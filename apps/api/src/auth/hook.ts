@@ -127,11 +127,11 @@ export function makeAuthHook(
     req.user = toAuthUser(user);
     if (opts.scopeStorage) {
       // Admins operate on the whole storage root (every user's folder lives
-      // under it); everyone else is confined to their own users/<id>/.
+      // under users/<email>/); everyone else is confined to their own.
       req.storage =
         user.role === "admin"
           ? app.storage
-          : ensureUserDir(app.storage, user.id);
+          : ensureUserDir(app.storage, user.email);
     }
   };
 }

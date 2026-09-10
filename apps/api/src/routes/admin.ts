@@ -141,14 +141,16 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       const id = generateUserId();
       const otp = generateOtp();
       const now = app.now();
+      const role: Role = req.body.role ?? "user";
 
       // Provision the folder before the row exists: a mailer failure then can't
-      // leave an un-provisioned account behind.
-      ensureUserDir(app.storage, id);
+      // leave an un-provisioned account behind. Admins browse the root, so they
+      // get no personal folder.
+      if (role !== "admin") ensureUserDir(app.storage, email);
       createUser(app.db, {
         id,
         email,
-        role: req.body.role ?? "user",
+        role,
         passwordHash: hashPassword(otp),
         mustChangePassword: true,
         passwordExpiresAt: now + INVITE_TTL_MS,

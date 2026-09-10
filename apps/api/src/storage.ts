@@ -22,10 +22,11 @@ export interface Storage {
    */
   resolve(userPath: string): string;
   /**
-   * Reserved for the auth phase: a sub-storage scoped to `users/<userId>`.
-   * Not wired to any route yet — it's the seam per-user isolation slots into.
+   * A sub-storage scoped to `users/<key>` — where `key` is the account's email
+   * (so an admin browsing the root can tell whose folder is whose). The folder
+   * must already exist; use {@link ensureUserDir} to create-then-scope.
    */
-  forUser(userId: string): Storage;
+  forUser(key: string): Storage;
 }
 
 export class PathError extends Error {
@@ -40,7 +41,17 @@ export class PathError extends Error {
 }
 
 const WINDOWS_DRIVE_PREFIX = /^[a-zA-Z]:[\\/]/;
-const USER_ID = /^[a-z0-9_-]{1,64}$/i;
+/**
+ * A single path component used as a per-user folder name. Broad enough for an
+ * email address (`joel@pistora.se`) or a plain slug, strict enough to stay one
+ * filesystem-safe segment: starts alphanumeric, then letters/digits/`. _ + @ -`,
+ * ≤254 chars, and never contains `..`. Checked by {@link isUserFolder}.
+ */
+const USER_FOLDER = /^[a-z0-9][a-z0-9._+@-]{0,253}$/i;
+
+function isUserFolder(key: string): boolean {
+  return USER_FOLDER.test(key) && !key.includes("..");
+}
 
 export function createStorage(root: string): Storage {
   const rootResolved = path.resolve(root);
@@ -86,29 +97,29 @@ export function createStorage(root: string): Storage {
   const api: Storage = {
     root: rootReal,
     resolve,
-    forUser(userId: string): Storage {
-      if (!USER_ID.test(userId)) {
-        throw new PathError(400, "bad_user", "invalid user id");
+    forUser(key: string): Storage {
+      if (!isUserFolder(key)) {
+        throw new PathError(400, "bad_user", "invalid user folder");
       }
-      return createStorage(path.join(rootReal, "users", userId));
+      return createStorage(path.join(rootReal, "users", key));
     },
   };
   return api;
 }
 
 /**
- * Make sure `users/<userId>` exists on disk, then return a {@link Storage}
- * scoped to it. This is the wrapper every caller should use: `forUser()` alone
- * throws if the directory is missing (it realpaths its root at construction),
- * and creating the folder here keeps the API self-healing if the drive is wiped
- * or a provisioning step was skipped. Idempotent.
+ * Make sure `users/<key>` exists on disk, then return a {@link Storage} scoped
+ * to it. `key` is the account email. This is the wrapper every caller should
+ * use: `forUser()` alone throws if the directory is missing (it realpaths its
+ * root at construction), and creating the folder here keeps the API self-healing
+ * if the drive is wiped or a provisioning step was skipped. Idempotent.
  */
-export function ensureUserDir(storage: Storage, userId: string): Storage {
-  if (!USER_ID.test(userId)) {
-    throw new PathError(400, "bad_user", "invalid user id");
+export function ensureUserDir(storage: Storage, key: string): Storage {
+  if (!isUserFolder(key)) {
+    throw new PathError(400, "bad_user", "invalid user folder");
   }
-  fs.mkdirSync(path.join(storage.root, "users", userId), { recursive: true });
-  return storage.forUser(userId);
+  fs.mkdirSync(path.join(storage.root, "users", key), { recursive: true });
+  return storage.forUser(key);
 }
 
 /**

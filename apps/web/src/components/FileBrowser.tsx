@@ -41,7 +41,7 @@ export default function FileBrowser() {
       {user?.role === "admin" && (
         <p className="text-xs text-foreground/50">
           Admin view — browsing the entire storage root. Each account&apos;s files
-          live under <code className="font-mono">users/</code>.
+          live in <code className="font-mono">users/&lt;their email&gt;/</code>.
         </p>
       )}
 

@@ -1,6 +1,5 @@
 import type { FastifyInstance } from "fastify";
 import { countAdmins, createUser } from "../db/users.js";
-import { ensureUserDir } from "../storage.js";
 import { generateOtp, generateUserId, hashPassword } from "./crypto.js";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -18,7 +17,7 @@ export async function ensureAdminUser(app: FastifyInstance): Promise<void> {
   const otp = generateOtp();
   const now = app.now();
 
-  ensureUserDir(app.storage, id);
+  // No personal folder for an admin — admins browse the whole storage root.
   createUser(app.db, {
     id,
     email: app.config.adminEmail,

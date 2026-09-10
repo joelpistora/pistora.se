@@ -67,18 +67,20 @@ interface SeedUserInput {
   passwordExpiresAt?: number | null;
 }
 
-/** Insert a user straight through the DAO and provision their folder. */
+/** Insert a user straight through the DAO and provision their folder (non-admins). */
 export function seedUser(
   app: FastifyInstance,
   input: SeedUserInput,
 ): { id: string; email: string; password: string } {
   const id = generateUserId();
+  const email = input.email.trim().toLowerCase();
+  const role = input.role ?? "user";
   const password = input.password ?? "test-password-123";
-  ensureUserDir(app.storage, id);
+  if (role !== "admin") ensureUserDir(app.storage, email);
   createUser(app.db, {
     id,
-    email: input.email.trim().toLowerCase(),
-    role: input.role ?? "user",
+    email,
+    role,
     passwordHash: hashPassword(password),
     mustChangePassword: input.mustChange ?? false,
     passwordExpiresAt: input.passwordExpiresAt ?? null,
@@ -89,7 +91,7 @@ export function seedUser(
       .prepare("UPDATE users SET status = ? WHERE id = ?")
       .run(input.status, id);
   }
-  return { id, email: input.email, password };
+  return { id, email, password };
 }
 
 /** Log in and return the `name=value` cookie string to hand back as a `cookie` header. */
@@ -132,7 +134,7 @@ export async function makeAuthedApp(
     root,
     mailer,
     userId: user.id,
-    userDir: path.join(root, "users", user.id),
+    userDir: path.join(root, "users", user.email),
     cookie,
   };
 }

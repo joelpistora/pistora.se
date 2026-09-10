@@ -12,7 +12,7 @@ import {
   seedUser,
 } from "../test-helpers.js";
 
-test("bootstrap: a fresh database gets an admin + an invite + a folder", async (t) => {
+test("bootstrap: a fresh database gets an admin + an invite (no personal folder)", async (t) => {
   const { app, root, mailer } = await makeApp(t);
 
   const row = app.db
@@ -26,7 +26,8 @@ test("bootstrap: a fresh database gets an admin + an invite + a folder", async (
 
   assert.equal(mailer.sent.length, 1);
   assert.equal(mailer.sent[0]!.to, "admin@pistora.test");
-  assert.ok(fs.statSync(path.join(root, "users", row!.id)).isDirectory());
+  // admins browse the storage root, so no users/<admin> folder is made
+  assert.ok(!fs.existsSync(path.join(root, "users", "admin@pistora.test")));
 });
 
 test("bootstrap is a no-op when an admin already exists", async (t) => {
@@ -71,7 +72,9 @@ test("admin invites a user: folder, invite email, and an OTP that forces a chang
   const { user } = created.json();
   assert.equal(user.email, "new.user@example.com");
   assert.equal(user.mustChangePassword, true);
-  assert.ok(fs.statSync(path.join(root, "users", user.id)).isDirectory());
+  assert.ok(
+    fs.statSync(path.join(root, "users", "new.user@example.com")).isDirectory(),
+  );
 
   const invite = mailer.sent.at(-1)!;
   assert.equal(invite.to, "new.user@example.com");
@@ -257,9 +260,20 @@ test("an admin's file view is the whole storage root, not a personal folder", as
     ["users"],
   );
 
+  // the folder is named after alice's email, so admin can tell whose it is
+  const usersDir = await app.inject({
+    method: "GET",
+    url: "/api/files/users",
+    headers: { cookie },
+  });
+  assert.deepEqual(
+    usersDir.json().entries.map((e: { name: string }) => e.name),
+    ["alice@pistora.test"],
+  );
+
   const inAlice = await app.inject({
     method: "GET",
-    url: `/api/files/users/${alice.id}`,
+    url: `/api/files/users/${encodeURIComponent(alice.email)}`,
     headers: { cookie },
   });
   assert.equal(inAlice.statusCode, 200);
@@ -267,7 +281,7 @@ test("an admin's file view is the whole storage root, not a personal folder", as
     inAlice.json().entries.map((e: { name: string }) => e.name),
     ["a.txt"],
   );
-  assert.ok(fs.existsSync(path.join(root, "users", alice.id, "a.txt")));
+  assert.ok(fs.existsSync(path.join(root, "users", alice.email, "a.txt")));
 
   // admin still can't delete the root itself
   const nuke = await app.inject({

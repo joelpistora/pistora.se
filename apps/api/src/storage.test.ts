@@ -91,30 +91,31 @@ test("allows a deeply nested not-yet-existing path", () => {
   );
 });
 
-test("forUser rejects bad ids before touching the filesystem", () => {
-  assert.throws(() => storage.forUser("../root"), PathError);
-  assert.throws(() => storage.forUser(""), PathError);
-  assert.throws(() => storage.forUser("has space"), PathError);
+test("forUser rejects an unsafe folder key before touching the filesystem", () => {
+  for (const bad of ["../root", "", "has space", ".hidden", "a/b", "a..b", "évil"]) {
+    assert.throws(() => storage.forUser(bad), PathError, `expected reject: ${JSON.stringify(bad)}`);
+  }
 });
 
-test("forUser scopes to users/<id> when the dir exists", () => {
-  fs.mkdirSync(path.join(root, "users/joel"), { recursive: true });
-  const scoped = storage.forUser("joel");
-  assert.equal(scoped.root, path.join(storage.root, "users/joel"));
-  assert.equal(scoped.resolve("a.txt"), path.join(storage.root, "users/joel/a.txt"));
+test("forUser scopes to users/<key> (email or slug) when the dir exists", () => {
+  for (const key of ["joel", "joel@pistora.se"]) {
+    fs.mkdirSync(path.join(root, "users", key), { recursive: true });
+    const scoped = storage.forUser(key);
+    assert.equal(scoped.root, path.join(storage.root, "users", key));
+    assert.equal(scoped.resolve("a.txt"), path.join(storage.root, "users", key, "a.txt"));
+  }
 });
 
-test("ensureUserDir creates users/<id>, is idempotent, and scopes there", () => {
-  const id = "11111111-2222-3333-4444-555555555555";
-  const scoped = ensureUserDir(storage, id);
-  assert.ok(fs.statSync(path.join(root, "users", id)).isDirectory());
-  assert.equal(scoped.root, path.join(storage.root, "users", id));
-  // second call must not throw
-  const again = ensureUserDir(storage, id);
+test("ensureUserDir creates users/<email>, is idempotent, and scopes there", () => {
+  const key = "someone@example.com";
+  const scoped = ensureUserDir(storage, key);
+  assert.ok(fs.statSync(path.join(root, "users", key)).isDirectory());
+  assert.equal(scoped.root, path.join(storage.root, "users", key));
+  const again = ensureUserDir(storage, key); // second call must not throw
   assert.equal(again.root, scoped.root);
 });
 
-test("ensureUserDir rejects a bad id without touching the filesystem", () => {
+test("ensureUserDir rejects a bad key without touching the filesystem", () => {
   assert.throws(() => ensureUserDir(storage, "../evil"), (err: unknown) => {
     assert.ok(err instanceof PathError);
     assert.equal(err.code, "bad_user");

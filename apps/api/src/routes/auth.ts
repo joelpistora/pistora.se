@@ -142,7 +142,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       throttle.reset(email);
-      ensureUserDir(app.storage, user.id);
+      if (user.role !== "admin") ensureUserDir(app.storage, user.email);
       mintSession(reply, user.id, req.headers["user-agent"], req.ip);
       touchLastLogin(app.db, user.id, now);
 

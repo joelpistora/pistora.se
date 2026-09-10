@@ -49,10 +49,10 @@ test("each user only ever sees their own storage; the other's is invisible", asy
     404,
   );
 
-  // on disk the files sit in each user's own folder
-  assert.ok(fs.existsSync(path.join(root, "users", a.id, "secret.txt")));
-  assert.ok(fs.existsSync(path.join(root, "users", b.id, "notes/b.txt")));
-  assert.ok(!fs.existsSync(path.join(root, "users", b.id, "secret.txt")));
+  // on disk the files sit in each user's own email-named folder
+  assert.ok(fs.existsSync(path.join(root, "users", a.email, "secret.txt")));
+  assert.ok(fs.existsSync(path.join(root, "users", b.email, "notes/b.txt")));
+  assert.ok(!fs.existsSync(path.join(root, "users", b.email, "secret.txt")));
   assert.ok(!fs.existsSync(path.join(root, "secret.txt")));
 });
 
@@ -66,9 +66,9 @@ test("path traversal cannot reach another user's directory", async (t) => {
   await upload(injectA, "", "secret.txt", "alice's eyes only");
 
   for (const attempt of [
-    `../${a.id}/secret.txt`,
-    `..%2f${a.id}%2fsecret.txt`,
-    `../../users/${a.id}/secret.txt`,
+    `../${a.email}/secret.txt`,
+    `..%2f${a.email}%2fsecret.txt`,
+    `../../users/${a.email}/secret.txt`,
   ]) {
     const res = await injectB({
       method: "GET",
