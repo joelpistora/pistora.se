@@ -13,7 +13,6 @@ export default function UserMenu() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,10 +33,9 @@ export default function UserMenu() {
 
   if (loading || !user) return null;
 
-  async function handleSignOut() {
-    setBusy(true);
-    await logout();
+  function handleSignOut() {
     setOpen(false);
+    void logout(); // clears the session locally right away; API call is best-effort
     router.push("/");
   }
 
@@ -94,10 +92,9 @@ export default function UserMenu() {
             type="button"
             role="menuitem"
             onClick={handleSignOut}
-            disabled={busy}
-            className="block w-full px-3 py-2 text-left text-red-600 transition-colors hover:bg-foreground/10 disabled:opacity-50"
+            className="block w-full px-3 py-2 text-left text-red-600 transition-colors hover:bg-foreground/10"
           >
-            {busy ? "Logging out…" : "Log out"}
+            Log out
           </button>
         </div>
       )}

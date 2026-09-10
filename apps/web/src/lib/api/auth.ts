@@ -19,7 +19,11 @@ export function login(email: string, password: string): Promise<SessionResponse>
 }
 
 export function logout(): Promise<void> {
-  return request<void>("/api/auth/logout", { method: "POST" });
+  // Cap it — a hung logout must never be able to block the sign-out UI.
+  return request<void>("/api/auth/logout", {
+    method: "POST",
+    signal: AbortSignal.timeout(5000),
+  });
 }
 
 export function getMe(): Promise<SessionResponse> {

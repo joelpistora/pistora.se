@@ -43,10 +43,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Clear local state first: the app is logged out immediately, whatever the
+    // network does. The server session expires on its own; the cookie clears on
+    // the 204 when the request lands.
+    if (mounted.current) setUser(null);
     try {
       await apiLogout();
-    } finally {
-      if (mounted.current) setUser(null);
+    } catch {
+      // best effort
     }
   }, []);
 
