@@ -46,7 +46,7 @@ export default function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded border border-foreground/15 bg-background px-3 py-1.5 text-foreground/80 transition-colors hover:bg-foreground/10 hover:text-foreground"
+        className="flex items-center gap-2 rounded border border-foreground/15 bg-surface px-3 py-1.5 text-foreground/80 transition-colors hover:bg-foreground/10 hover:text-foreground"
       >
         <span className="max-w-[40vw] truncate">{user.email}</span>
         <svg
@@ -66,7 +66,7 @@ export default function UserMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-60 overflow-hidden rounded-md border border-foreground/15 bg-background shadow-lg"
+          className="absolute right-0 mt-2 w-60 overflow-hidden rounded-md border border-foreground/15 bg-surface shadow-lg"
         >
           <p className="border-b border-foreground/10 px-3 py-2 text-xs text-foreground/60">
             Logged in as

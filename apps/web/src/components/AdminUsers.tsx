@@ -14,7 +14,7 @@ import { authErrorMessage } from "@/lib/authErrors";
 import { formatDate, formatSize } from "@/lib/format";
 
 const FIELD =
-  "rounded border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-foreground/50";
+  "rounded border border-foreground/20 bg-surface px-3 py-2 text-sm outline-none focus:border-accent";
 
 const GiB = 1024 * 1024 * 1024;
 const toGiB = (bytes: number) => Math.round((bytes / GiB) * 100) / 100;
@@ -98,7 +98,7 @@ function QuotaEditor({
               setErr(null);
             }
           }}
-          className="w-16 rounded border border-foreground/20 bg-background px-1.5 py-0.5 text-xs"
+          className="w-16 rounded border border-foreground/20 bg-surface px-1.5 py-0.5 text-xs"
         />
         GB
         <button
@@ -191,7 +191,7 @@ function RowActions({ actions, disabled }: { actions: RowAction[]; disabled: boo
           ref={menuRef}
           role="menu"
           style={{ position: "fixed", top: pos.top, right: pos.right }}
-          className="z-30 w-48 overflow-hidden rounded-md border border-foreground/15 bg-background py-1 text-sm shadow-lg"
+          className="z-30 w-48 overflow-hidden rounded-md border border-foreground/15 bg-surface py-1 text-sm shadow-lg"
         >
           {actions.map((a) => (
             <button
@@ -218,11 +218,12 @@ function RowActions({ actions, disabled }: { actions: RowAction[]; disabled: boo
 /** Shown after an invite / OTP reset — the admin passes this on to the user. */
 function OtpNotice({ email, otp }: { email: string; otp?: string }) {
   return (
-    <div className="rounded border border-green-600/30 bg-green-600/10 px-3 py-2 text-sm">
+    <div className="rounded border border-amber/30 bg-amber/10 px-3 py-2 text-sm">
       Invite ready for <span className="font-medium">{email}</span>.{" "}
       {otp ? (
         <>
-          One-time password: <code className="font-mono font-semibold">{otp}</code>
+          One-time password:{" "}
+          <code className="font-mono font-semibold text-amber">{otp}</code>
         </>
       ) : (
         <>The one-time password was written to the API server log.</>
@@ -323,7 +324,7 @@ export default function AdminUsers() {
         <button
           type="submit"
           disabled={busy}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-sm text-accent-foreground transition hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Generating…" : "Generate user"}
         </button>
@@ -359,9 +360,7 @@ export default function AdminUsers() {
                     <td className="py-2 pr-6">
                       <div className="whitespace-nowrap">{u.email}</div>
                       {u.mustChangePassword && (
-                        <span className="text-xs text-foreground/50">
-                          pending first sign-in
-                        </span>
+                        <span className="text-xs text-amber">pending first sign-in</span>
                       )}
                     </td>
                     <td className="py-2 pr-6">{u.role}</td>

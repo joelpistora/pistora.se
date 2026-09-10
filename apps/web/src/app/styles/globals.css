@@ -1,20 +1,54 @@
 @import "tailwindcss";
 
+/*
+ * Fog & Steel — very light, airy grays with a desaturated steel-blue as the one
+ * interactive accent, plus a burnt amber used sparingly for transient states
+ * (one-time passwords, "pending", storage filling up). Dark mode swaps the
+ * neutrals and lifts both accents so they stay legible on the dark ground.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f4f6; /* page ground */
+  --surface: #ffffff; /* raised: menus, modals, inputs */
+  --foreground: #2b2f34; /* text, and the few dark fills (tooltip) */
+  --accent: #4f739c; /* steel blue — buttons, links, focus, the usage bar */
+  --accent-foreground: #ffffff; /* text on --accent */
+  --amber: #b4640f; /* secondary accent — one-time / pending / near-full */
+  --amber-foreground: #ffffff; /* text on --amber */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #111417;
+    --surface: #191c20;
+    --foreground: #e3e5e8;
+    --accent: #84a6c9;
+    --accent-foreground: #0c1116;
+    --amber: #e0933c;
+    --amber-foreground: #1a1206;
   }
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-amber: var(--amber);
+  --color-amber-foreground: var(--amber-foreground);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/*
+ * Keyboard focus: a steel-blue ring on things you click. Text inputs opt out
+ * (`outline-none`) and show an accent border on focus instead.
+ */
+:where(a, button, [role="button"], [role="menuitem"], summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }

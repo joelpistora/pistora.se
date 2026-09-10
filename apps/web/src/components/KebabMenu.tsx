@@ -84,7 +84,7 @@ export default function KebabMenu({
           role="menu"
           style={{ position: "fixed", top: pos.top, right: pos.right }}
           onClick={(e) => e.stopPropagation()}
-          className="z-30 w-44 overflow-hidden rounded-md border border-foreground/15 bg-background py-1 text-sm shadow-lg"
+          className="z-30 w-44 overflow-hidden rounded-md border border-foreground/15 bg-surface py-1 text-sm shadow-lg"
         >
           {actions.map((a) =>
             a.href ? (

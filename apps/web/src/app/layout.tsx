@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./styles/globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -18,6 +18,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pistora Web",
   description: "Pistora home server — file storage and more.",
+};
+
+/** Browser UI chrome (mobile address bar) follows the Fog & Steel ground. */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f3f4f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#111417" },
+  ],
 };
 
 export default function RootLayout({

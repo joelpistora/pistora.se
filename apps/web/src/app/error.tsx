@@ -16,7 +16,7 @@ export default function Error({
         </p>
         <button
           onClick={() => reset()}
-          className="rounded bg-foreground px-4 py-2 text-background transition hover:opacity-90"
+          className="rounded bg-accent px-4 py-2 text-accent-foreground transition hover:opacity-90"
         >
           Try again
         </button>

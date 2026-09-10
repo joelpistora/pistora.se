@@ -79,7 +79,7 @@ function RenameInput({
         }
       }}
       onBlur={() => finish(true)}
-      className="w-56 max-w-full rounded border border-foreground/30 bg-background px-1.5 py-0.5 text-sm outline-none"
+      className="w-56 max-w-full rounded border border-accent bg-surface px-1.5 py-0.5 text-sm outline-none"
     />
   );
 }

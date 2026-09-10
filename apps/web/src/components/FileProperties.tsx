@@ -60,7 +60,7 @@ export default function FileProperties({
         aria-modal="true"
         aria-label={`Properties of ${name}`}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-lg border border-foreground/15 bg-background p-5 shadow-xl"
+        className="w-full max-w-sm rounded-lg border border-foreground/15 bg-surface p-5 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4">
           <h2 className="text-base font-semibold break-all">{name}</h2>

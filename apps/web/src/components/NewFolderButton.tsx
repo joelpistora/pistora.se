@@ -79,7 +79,7 @@ export default function NewFolderButton({
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && reset()}
         placeholder="Folder name"
-        className="w-40 rounded border border-foreground/20 bg-background px-2 py-1 text-sm outline-none focus:border-foreground/50"
+        className="w-40 rounded border border-foreground/20 bg-surface px-2 py-1 text-sm outline-none focus:border-accent"
       />
       <button
         type="submit"

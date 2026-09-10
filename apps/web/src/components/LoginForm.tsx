@@ -7,7 +7,7 @@ import { login } from "@/lib/api";
 import { authErrorMessage } from "@/lib/authErrors";
 
 const FIELD =
-  "w-full rounded border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-foreground/50";
+  "w-full rounded border border-foreground/20 bg-surface px-3 py-2 text-sm outline-none focus:border-accent";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={busy}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-sm text-accent-foreground transition hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Signing in…" : "Confirm"}
         </button>

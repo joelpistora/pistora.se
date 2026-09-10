@@ -39,7 +39,7 @@ export default function StorageBar({ refreshKey = 0 }: { refreshKey?: number }) 
   const pct = quotaBytes === 0 ? 100 : Math.min(100, (usedBytes / quotaBytes) * 100);
   const full = usedBytes >= quotaBytes;
   const near = pct >= 80;
-  const barColor = full ? "bg-red-500" : near ? "bg-amber-500" : "bg-foreground/70";
+  const barColor = full ? "bg-red-500" : near ? "bg-amber" : "bg-accent";
 
   return (
     <div className="flex flex-col gap-1">

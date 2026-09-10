@@ -12,7 +12,7 @@ export default function Home() {
         {/* Auth-gated: /files bounces to /login when signed out. */}
         <Link
           href="/files"
-          className="rounded bg-foreground px-5 py-2.5 text-background transition hover:opacity-90"
+          className="rounded bg-accent px-5 py-2.5 text-accent-foreground transition hover:opacity-90"
         >
           Hard Drive
         </Link>

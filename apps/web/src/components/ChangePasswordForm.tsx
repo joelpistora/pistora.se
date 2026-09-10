@@ -9,7 +9,7 @@ import { authErrorMessage } from "@/lib/authErrors";
 
 const MIN_LEN = 10;
 const FIELD =
-  "w-full rounded border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-foreground/50";
+  "w-full rounded border border-foreground/20 bg-surface px-3 py-2 text-sm outline-none focus:border-accent";
 
 export default function ChangePasswordForm() {
   const router = useRouter();
@@ -62,7 +62,7 @@ export default function ChangePasswordForm() {
           {forced ? "Set a new password" : "Change password"}
         </h1>
         {forced && (
-          <p className="mt-2 rounded border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm text-foreground/70">
+          <p className="mt-2 rounded border border-amber/30 bg-amber/10 px-3 py-2 text-sm text-foreground/80">
             You&apos;re signed in with a one-time password. Choose a new one to continue.
           </p>
         )}
@@ -110,7 +110,7 @@ export default function ChangePasswordForm() {
         <button
           type="submit"
           disabled={busy || localError !== null}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background transition hover:opacity-90 disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-sm text-accent-foreground transition hover:opacity-90 disabled:opacity-50"
         >
           {busy ? "Saving…" : "Save new password"}
         </button>

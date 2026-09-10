@@ -12,7 +12,7 @@ export default function HomeButton() {
     <Link
       href="/"
       aria-label="Home"
-      className="fixed left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded border border-foreground/15 bg-background text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
+      className="fixed left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded border border-foreground/15 bg-surface text-foreground/70 transition-colors hover:bg-foreground/10 hover:text-accent"
     >
       <svg
         viewBox="0 0 24 24"

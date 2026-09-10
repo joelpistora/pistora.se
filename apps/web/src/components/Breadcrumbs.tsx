@@ -42,13 +42,13 @@ function Crumb({
   onClick: () => void;
 }) {
   if (isCurrent) {
-    return <span className="font-medium">{label}</span>;
+    return <span className="font-medium text-accent">{label}</span>;
   }
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-foreground/70 underline-offset-2 hover:text-foreground hover:underline"
+      className="text-foreground/70 underline-offset-2 hover:text-accent hover:underline"
     >
       {label}
     </button>
