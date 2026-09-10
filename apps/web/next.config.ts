@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   // (no Node runtime on the host). `next dev` is unaffected.
   output: "export",
   images: { unoptimized: true },
+  trailingSlash: true
 };
 
 export default nextConfig;
