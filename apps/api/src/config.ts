@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { DEFAULT_QUOTA_BYTES } from "./db/schema.js";
 
 /**
  * Fully-resolved runtime configuration. `buildApp()` takes one of these and
@@ -34,6 +35,8 @@ export interface AppConfig {
   cookieDomain: string | undefined;
   /** When true, `POST /api/admin/users` echoes the generated OTP in the response body (dev only). */
   exposeInviteOtp: boolean;
+  /** Quota (bytes) a newly invited user starts with. Admins can change it per user afterwards. */
+  defaultQuotaBytes: number;
 }
 
 const DEFAULT_CORS_ORIGINS = ["https://pistora.se", "https://www.pistora.se"];
@@ -101,5 +104,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cookieSecure: env.COOKIE_SECURE?.trim().toLowerCase() !== "false",
     cookieDomain: env.COOKIE_DOMAIN?.trim() || undefined,
     exposeInviteOtp: env.EXPOSE_INVITE_OTP?.trim().toLowerCase() === "true",
+    defaultQuotaBytes:
+      Number(env.DEFAULT_USER_QUOTA_BYTES) || DEFAULT_QUOTA_BYTES,
   };
 }

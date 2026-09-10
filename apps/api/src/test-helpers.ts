@@ -43,6 +43,7 @@ export async function makeApp(
       cookieSecure: false,
       cookieDomain: undefined,
       exposeInviteOtp: false,
+      defaultQuotaBytes: 1024 * 1024 * 1024,
       ...overrides,
     },
     { mailer, ...deps },
@@ -65,6 +66,8 @@ interface SeedUserInput {
   mustChange?: boolean;
   /** epoch ms; only relevant with mustChange. */
   passwordExpiresAt?: number | null;
+  /** Upload ceiling in bytes; defaults to the config default (1 GiB). */
+  quotaBytes?: number;
 }
 
 /** Insert a user straight through the DAO and provision their folder (non-admins). */
@@ -84,6 +87,7 @@ export function seedUser(
     passwordHash: hashPassword(password),
     mustChangePassword: input.mustChange ?? false,
     passwordExpiresAt: input.passwordExpiresAt ?? null,
+    quotaBytes: input.quotaBytes ?? app.config.defaultQuotaBytes,
     now: app.now(),
   });
   if (input.status && input.status !== "active") {

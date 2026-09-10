@@ -26,13 +26,17 @@ function freshDb() {
   return openDb(":memory:");
 }
 
-test("openDb creates the v1 schema and sets user_version", () => {
+test("openDb runs every migration and stamps user_version", () => {
   const db = freshDb();
   const { user_version } = db.prepare("PRAGMA user_version").get() as {
     user_version: number;
   };
-  assert.equal(user_version, 1);
-  // idempotent — a second openDb-style ensureSchema is a no-op
+  assert.equal(user_version, 2);
+  // v2 column is present with the 1 GiB default
+  const cols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(
+    (c) => c.name,
+  );
+  assert.ok(cols.includes("quota_bytes"));
   db.close();
 });
 

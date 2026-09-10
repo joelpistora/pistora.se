@@ -12,7 +12,13 @@
  *                  integers; booleans are 0/1 integers (mapped in the DAO).
  *   - `sessions` — one row per active login. The primary key is the SHA-256 of
  *                  the opaque cookie token; the raw token is never stored.
+ *
+ * v2: `users.quota_bytes` — per-user upload ceiling. Default 1 GiB; admins
+ *     ignore it (they operate on the whole storage root).
  */
+
+/** Default per-user quota (1 GiB). Also the fallback in `AppConfig.defaultQuotaBytes`. */
+export const DEFAULT_QUOTA_BYTES = 1024 * 1024 * 1024;
 
 export const SCHEMA_V1 = /* sql */ `
 CREATE TABLE users (
@@ -43,5 +49,9 @@ CREATE INDEX idx_sessions_user    ON sessions(user_id);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 `;
 
+export const SCHEMA_V2 = /* sql */ `
+ALTER TABLE users ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT ${DEFAULT_QUOTA_BYTES};
+`;
+
 /** Ordered migrations. Index + 1 is the `user_version` each one produces. */
-export const MIGRATIONS: readonly string[] = [SCHEMA_V1];
+export const MIGRATIONS: readonly string[] = [SCHEMA_V1, SCHEMA_V2];

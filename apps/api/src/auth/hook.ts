@@ -41,6 +41,7 @@ export function toAuthUser(row: UserRow): AuthUser {
     email: row.email,
     role: row.role,
     mustChangePassword: row.must_change_password,
+    quotaBytes: row.quota_bytes,
   };
 }
 

@@ -41,6 +41,15 @@ export interface AuthUser {
   role: Role;
   /** True until the user replaces their one-time password. Gates everything else. */
   mustChangePassword: boolean;
+  /** Upload ceiling in bytes. Not enforced for admins (they browse the whole root). */
+  quotaBytes: number;
+}
+
+/** `GET /api/usage` — the caller's own storage footprint. */
+export interface UsageResponse {
+  usedBytes: number;
+  /** The caller's ceiling, or null for an admin (unlimited). */
+  quotaBytes: number | null;
 }
 
 /** Body of `POST /api/auth/login`, `POST /api/auth/change-password`, `GET /api/auth/me`. */
@@ -65,6 +74,7 @@ export interface AdminUser {
   role: Role;
   status: UserStatus;
   mustChangePassword: boolean;
+  quotaBytes: number;
   /** ISO 8601. */
   createdAt: string;
   /** ISO 8601, or null if the user has never logged in. */
@@ -103,7 +113,8 @@ export type ErrorCode =
   | "password_change_required"
   | "otp_expired"
   | "weak_password"
-  | "too_many_requests";
+  | "too_many_requests"
+  | "quota_exceeded";
 
 export interface ErrorEnvelope {
   error: {

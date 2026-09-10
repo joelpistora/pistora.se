@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useDirectory } from "@/hooks/useDirectory";
 import Breadcrumbs from "./Breadcrumbs";
 import FileTable from "./FileTable";
+import StorageBar from "./StorageBar";
 import UploadButton from "./UploadButton";
 
 /** Normalise a path: no leading/trailing slashes, no empty segments. */
@@ -21,6 +22,12 @@ export default function FileBrowser() {
 
   const { listing, loading, error, reload } = useDirectory(path);
   const [selected, setSelected] = useState<string | null>(null);
+  const [usageKey, setUsageKey] = useState(0);
+
+  const afterUpload = useCallback(() => {
+    reload();
+    setUsageKey((k) => k + 1);
+  }, [reload]);
 
   const navigate = useCallback(
     (next: string) => {
@@ -45,9 +52,11 @@ export default function FileBrowser() {
         </p>
       )}
 
+      {user?.role !== "admin" && <StorageBar refreshKey={usageKey} />}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Breadcrumbs path={path} onNavigate={navigate} />
-        <UploadButton path={path} onUploaded={reload} />
+        <UploadButton path={path} onUploaded={afterUpload} />
       </div>
 
       {loading && <p className="text-sm text-foreground/60">Loading…</p>}

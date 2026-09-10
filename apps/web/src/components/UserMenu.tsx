@@ -84,7 +84,7 @@ export default function UserMenu() {
               }}
               className="block w-full px-3 py-2 text-left transition-colors hover:bg-foreground/10"
             >
-              Register new account
+              Manage users
             </button>
           )}
 

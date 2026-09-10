@@ -15,11 +15,15 @@ import {
   getUserById,
   issueOtp,
   listUsers,
+  setQuota,
   setRole,
   setStatus,
   type UserRow,
 } from "../db/users.js";
 import { ensureUserDir } from "../storage.js";
+
+/** Hard cap on a per-user quota an admin can set — a sanity limit, not a disk check. */
+const MAX_QUOTA_BYTES = 5 * 1024 * 1024 * 1024 * 1024; // 5 TiB
 
 /** How long an invited / reset one-time password stays usable. */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -31,6 +35,7 @@ function toAdminUser(row: UserRow): AdminUser {
     role: row.role,
     status: row.status,
     mustChangePassword: row.must_change_password,
+    quotaBytes: row.quota_bytes,
     createdAt: new Date(row.created_at).toISOString(),
     lastLoginAt:
       row.last_login_at == null ? null : new Date(row.last_login_at).toISOString(),
@@ -39,7 +44,10 @@ function toAdminUser(row: UserRow): AdminUser {
 
 const adminUserSchema = {
   type: "object",
-  required: ["id", "email", "role", "status", "mustChangePassword", "createdAt", "lastLoginAt"],
+  required: [
+    "id", "email", "role", "status", "mustChangePassword", "quotaBytes",
+    "createdAt", "lastLoginAt",
+  ],
   additionalProperties: false,
   properties: {
     id: { type: "string" },
@@ -47,6 +55,7 @@ const adminUserSchema = {
     role: { type: "string", enum: ["admin", "user"] },
     status: { type: "string", enum: ["active", "disabled"] },
     mustChangePassword: { type: "boolean" },
+    quotaBytes: { type: "integer" },
     createdAt: { type: "string" },
     lastLoginAt: { type: ["string", "null"] },
   },
@@ -69,6 +78,7 @@ const patchBodySchema = {
   properties: {
     status: { type: "string", enum: ["active", "disabled"] },
     role: { type: "string", enum: ["admin", "user"] },
+    quotaBytes: { type: "integer", minimum: 0, maximum: MAX_QUOTA_BYTES },
   },
 } as const;
 
@@ -154,6 +164,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         passwordHash: hashPassword(otp),
         mustChangePassword: true,
         passwordExpiresAt: now + INVITE_TTL_MS,
+        quotaBytes: app.config.defaultQuotaBytes,
         now,
       });
 
@@ -167,7 +178,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
   // ---- PATCH /api/admin/users/:id -------------------------------------
 
-  app.patch<{ Params: { id: string }; Body: { status?: UserStatus; role?: Role } }>(
+  app.patch<{
+    Params: { id: string };
+    Body: { status?: UserStatus; role?: Role; quotaBytes?: number };
+  }>(
     "/users/:id",
     {
       schema: {
@@ -212,6 +226,9 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         if (req.body.status === "disabled") {
           deleteSessionsForUser(app.db, target.id);
         }
+      }
+      if (req.body.quotaBytes != null && req.body.quotaBytes !== target.quota_bytes) {
+        setQuota(app.db, target.id, req.body.quotaBytes, now);
       }
 
       return { user: toAdminUser(getUserById(app.db, target.id)!) };

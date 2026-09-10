@@ -292,6 +292,33 @@ test("an admin's file view is the whole storage root, not a personal folder", as
   assert.equal(nuke.statusCode, 400);
 });
 
+test("PATCH quotaBytes: updates the user's ceiling and shows up on their /me", async (t) => {
+  const { app, cookie } = await makeAdminApp(t);
+  const u = seedUser(app, { email: "quota@example.com", quotaBytes: 1000 });
+
+  const patched = await app.inject({
+    method: "PATCH",
+    url: `/api/admin/users/${u.id}`,
+    headers: { cookie },
+    payload: { quotaBytes: 250 },
+  });
+  assert.equal(patched.statusCode, 200);
+  assert.equal(patched.json().user.quotaBytes, 250);
+
+  const meCookie = await loginCookie(app, u.email, u.password);
+  const me = await app.inject({ method: "GET", url: "/api/auth/me", headers: { cookie: meCookie } });
+  assert.equal(me.json().user.quotaBytes, 250);
+
+  // negative quota is rejected by schema validation
+  const bad = await app.inject({
+    method: "PATCH",
+    url: `/api/admin/users/${u.id}`,
+    headers: { cookie },
+    payload: { quotaBytes: -1 },
+  });
+  assert.equal(bad.statusCode, 400);
+});
+
 test("reset-otp / patch on an unknown user id is a 404", async (t) => {
   const { app, cookie } = await makeAdminApp(t);
   for (const req of [

@@ -28,6 +28,8 @@ export default function UploadButton({ path, onUploaded }: UploadButtonProps) {
     } catch (err) {
       if (isNetworkError(err)) {
         setError("Upload failed — can't reach the API.");
+      } else if (err instanceof ApiError && err.code === "quota_exceeded") {
+        setError("Not enough space — this file would put you over your storage limit.");
       } else if (err instanceof ApiError) {
         setError(`Upload failed: ${err.message}`);
       } else {

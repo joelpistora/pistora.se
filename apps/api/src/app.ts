@@ -15,6 +15,7 @@ import { authRoutes } from "./routes/auth.js";
 import { dirRoutes } from "./routes/dirs.js";
 import { fileRoutes } from "./routes/files.js";
 import { healthRoutes } from "./routes/health.js";
+import { usageRoutes } from "./routes/usage.js";
 import { createStorage, type Storage } from "./storage.js";
 
 declare module "fastify" {
@@ -103,6 +104,7 @@ export async function buildApp(
     await secure.register(fileRoutes, { prefix: "/api/files" });
     await secure.register(dirRoutes, { prefix: "/api/dirs" });
     await secure.register(adminRoutes, { prefix: "/api/admin" });
+    await secure.register(usageRoutes, { prefix: "/api" });
   });
 
   return app;

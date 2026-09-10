@@ -2,10 +2,38 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
+import { dirSize } from "../fs-usage.js";
 import { contentTypeFor } from "../mime.js";
 import type { DirListing, FileEntry, FileMetadata } from "shared";
+
+/**
+ * Thrown by the byte-cap transform, and by `handleUpload`, when an upload would
+ * push a user over quota. `statusCode` + `code` are what `http.ts` puts in the
+ * error envelope.
+ */
+class QuotaExceededError extends Error {
+  readonly statusCode = 413;
+  readonly code = "quota_exceeded";
+  constructor(message = "storage quota exceeded") {
+    super(message);
+    this.name = "QuotaExceededError";
+  }
+}
+
+/** A pass-through stream that errors once more than `limit` bytes flow through it. */
+function byteCap(limit: number): Transform {
+  let seen = 0;
+  return new Transform({
+    transform(chunk: Buffer, _enc, cb) {
+      seen += chunk.length;
+      if (seen > limit) cb(new QuotaExceededError());
+      else cb(null, chunk);
+    },
+  });
+}
 
 interface FilesQuery {
   stat?: string;
@@ -138,6 +166,13 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       );
     }
 
+    // Per-user quota. Admins operate on the whole storage root, so they're
+    // exempt. `used` is walked once up front and kept current across a batch so
+    // the Nth file is measured against what the first N-1 already consumed.
+    const enforceQuota = request.user!.role !== "admin";
+    const quotaBytes = request.user!.quotaBytes;
+    let used = enforceQuota ? await dirSize(request.storage.root) : 0;
+
     // Multi-file uploads are NOT atomic as a batch: each part is renamed into
     // place as it finishes, so if part N fails (size limit, write error) parts
     // 1..N-1 stay committed and only the error for part N reaches the client.
@@ -155,9 +190,17 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
         path.dirname(targetAbs),
         `${UPLOAD_TEMP_PREFIX}${randomUUID()}.part`,
       );
+      // Overwriting a file frees the bytes it currently holds.
+      const replacedBytes = enforceQuota
+        ? await fsp.stat(targetAbs).then((s) => s.size, () => 0)
+        : 0;
+      const remaining = Math.max(0, quotaBytes - used + replacedBytes);
 
       try {
-        await pipeline(part.file, fs.createWriteStream(tmpAbs, { flags: "wx" }));
+        const ws = fs.createWriteStream(tmpAbs, { flags: "wx" });
+        await (enforceQuota
+          ? pipeline(part.file, byteCap(remaining), ws)
+          : pipeline(part.file, ws));
         if (part.file.truncated) {
           await fsp.rm(tmpAbs, { force: true });
           throw app.httpErrors.payloadTooLarge(
@@ -167,10 +210,14 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
         await fsp.rename(tmpAbs, targetAbs);
       } catch (err) {
         await fsp.rm(tmpAbs, { force: true }).catch(() => {});
+        if (err instanceof QuotaExceededError) {
+          throw new QuotaExceededError(`"${name}" would exceed your storage quota`);
+        }
         throw err;
       }
 
       const s = await fsp.stat(targetAbs);
+      used += s.size - replacedBytes;
       created.push(toEntry(name, s));
     }
 

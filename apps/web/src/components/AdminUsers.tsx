@@ -15,6 +15,73 @@ import { formatDate } from "@/lib/format";
 const FIELD =
   "rounded border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-foreground/50";
 
+const GiB = 1024 * 1024 * 1024;
+const toGiB = (bytes: number) => Math.round((bytes / GiB) * 100) / 100;
+
+/** Inline GB editor for a user's quota. Admins have no quota to show. */
+function QuotaEditor({
+  user,
+  disabled,
+  onSave,
+}: {
+  user: AdminUser;
+  disabled: boolean;
+  onSave: (bytes: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(toGiB(user.quotaBytes)));
+
+  if (user.role === "admin") {
+    return <span className="text-foreground/40">— (unlimited)</span>;
+  }
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          setValue(String(toGiB(user.quotaBytes)));
+          setEditing(true);
+        }}
+        className="underline-offset-2 hover:underline disabled:opacity-50"
+      >
+        {toGiB(user.quotaBytes)} GB
+      </button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1">
+      <input
+        type="number"
+        min={0}
+        step={0.1}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-16 rounded border border-foreground/20 bg-background px-1.5 py-0.5 text-xs"
+      />
+      GB
+      <button
+        type="button"
+        onClick={() => {
+          const gb = Number(value);
+          if (Number.isFinite(gb) && gb >= 0) onSave(Math.round(gb * GiB));
+          setEditing(false);
+        }}
+        className="rounded border border-foreground/20 px-1.5 py-0.5 text-xs hover:bg-foreground/10"
+      >
+        Save
+      </button>
+      <button
+        type="button"
+        onClick={() => setEditing(false)}
+        className="text-xs text-foreground/50 hover:text-foreground"
+      >
+        Cancel
+      </button>
+    </span>
+  );
+}
+
 /** Shown after an invite / OTP reset — the admin passes this on to the user. */
 function OtpNotice({ email, otp }: { email: string; otp?: string }) {
   return (
@@ -146,6 +213,7 @@ export default function AdminUsers() {
                   <th className="py-2 pr-4 font-medium">Email</th>
                   <th className="py-2 pr-4 font-medium">Role</th>
                   <th className="py-2 pr-4 font-medium">Status</th>
+                  <th className="py-2 pr-4 font-medium">Storage limit</th>
                   <th className="py-2 pr-4 font-medium">Last sign-in</th>
                   <th className="py-2 font-medium">Actions</th>
                 </tr>
@@ -166,6 +234,15 @@ export default function AdminUsers() {
                       <span className={u.status === "disabled" ? "text-red-600" : undefined}>
                         {u.status}
                       </span>
+                    </td>
+                    <td className="py-2 pr-4">
+                      <QuotaEditor
+                        user={u}
+                        disabled={rowBusy === u.id}
+                        onSave={(bytes) =>
+                          runRowAction(u.id, () => updateUser(u.id, { quotaBytes: bytes }))
+                        }
+                      />
                     </td>
                     <td className="py-2 pr-4 text-foreground/60">
                       {u.lastLoginAt ? formatDate(u.lastLoginAt) : "never"}

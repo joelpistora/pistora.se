@@ -26,6 +26,7 @@ export {
   uploadFiles,
   deleteEntry,
   makeDir,
+  getUsage,
 } from "./client";
 export {
   login,
@@ -59,4 +60,5 @@ export type {
   AdminUser,
   AdminUserListResponse,
   CreateUserResponse,
+  UsageResponse,
 } from "shared";

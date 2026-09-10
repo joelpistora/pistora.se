@@ -3,7 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import type { FastifyInstance, InjectOptions } from "fastify";
-import { makeApp, makeAuthedApp, multipartBody } from "../test-helpers.js";
+import {
+  loginCookie,
+  makeAdminApp,
+  makeApp,
+  makeAuthedApp,
+  multipartBody,
+  seedUser,
+} from "../test-helpers.js";
 
 /** An `app.inject` bound to a session cookie — every file/dir route needs one now. */
 function client(app: FastifyInstance, cookie: string) {
@@ -179,4 +186,72 @@ test("traversal rejected on upload", async (t) => {
     headers,
   });
   assert.ok(res.statusCode === 400 || res.statusCode === 403 || res.statusCode === 404);
+});
+
+// ---- per-user quota -----------------------------------------------------
+
+test("upload within quota succeeds; one that would exceed it is 413 quota_exceeded", async (t) => {
+  const { app, userDir, cookie } = await makeAuthedApp(t, { defaultQuotaBytes: 100 });
+  const inject = client(app, cookie);
+
+  const ok = await inject({
+    method: "POST",
+    url: "/api/files/",
+    ...multipartBody([{ filename: "a.bin", content: "x".repeat(60) }]),
+  });
+  assert.equal(ok.statusCode, 201);
+
+  const over = await inject({
+    method: "POST",
+    url: "/api/files/",
+    ...multipartBody([{ filename: "b.bin", content: "y".repeat(60) }]), // 60 + 60 > 100
+  });
+  assert.equal(over.statusCode, 413);
+  assert.equal(over.json().error.code, "quota_exceeded");
+
+  // the rejected upload left nothing behind
+  assert.equal(fs.existsSync(path.join(userDir, "b.bin")), false);
+  assert.deepEqual(fs.readdirSync(userDir).filter((n) => n.startsWith(".upload-")), []);
+});
+
+test("overwriting a file frees its bytes for the quota check", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t, { defaultQuotaBytes: 100 });
+  const inject = client(app, cookie);
+
+  await inject({
+    method: "POST",
+    url: "/api/files/",
+    ...multipartBody([{ filename: "f.bin", content: "x".repeat(90) }]),
+  });
+  // replacing the 90-byte file with another 90-byte file stays within 100
+  const replace = await inject({
+    method: "POST",
+    url: "/api/files/",
+    ...multipartBody([{ filename: "f.bin", content: "z".repeat(90) }]),
+  });
+  assert.equal(replace.statusCode, 201);
+});
+
+test("an admin uploading into a user's folder bypasses the quota", async (t) => {
+  const { app, root, cookie } = await makeAdminApp(t, { defaultQuotaBytes: 10 });
+  const u = seedUser(app, { email: "small@pistora.test", quotaBytes: 10 });
+
+  // the user themselves is capped
+  const userInject = client(app, await loginCookie(app, u.email, u.password));
+  const capped = await userInject({
+    method: "POST",
+    url: "/api/files/",
+    ...multipartBody([{ filename: "big.bin", content: "x".repeat(50) }]),
+  });
+  assert.equal(capped.statusCode, 413);
+
+  // the admin, browsing the root, is not
+  const adminInject = client(app, cookie);
+  const free = await adminInject({
+    method: "POST",
+    url: `/api/files/users/${encodeURIComponent(u.email)}`,
+    ...multipartBody([{ filename: "big.bin", content: "x".repeat(50) }]),
+  });
+  assert.equal(free.statusCode, 201);
+  assert.ok(fs.existsSync(path.join(root, "users", u.email, "big.bin")));
 });

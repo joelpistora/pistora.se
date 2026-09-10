@@ -57,7 +57,7 @@ export function createUser(email: string, role?: Role): Promise<CreateUserRespon
 
 export function updateUser(
   id: string,
-  patch: { status?: UserStatus; role?: Role },
+  patch: { status?: UserStatus; role?: Role; quotaBytes?: number },
 ): Promise<{ user: AdminUser }> {
   return request<{ user: AdminUser }>(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: "PATCH",

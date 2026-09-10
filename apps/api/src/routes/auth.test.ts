@@ -23,6 +23,7 @@ test("login: success sets an HttpOnly session cookie and returns the user", asyn
     email: "u@x.test",
     role: "user",
     mustChangePassword: false,
+    quotaBytes: 1024 * 1024 * 1024,
   });
   const c = cookieHeader(res);
   assert.match(c, /^pistora_session=/);

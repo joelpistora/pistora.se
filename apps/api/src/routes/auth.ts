@@ -48,13 +48,14 @@ const sessionResponseSchema = {
     properties: {
       user: {
         type: "object",
-        required: ["id", "email", "role", "mustChangePassword"],
+        required: ["id", "email", "role", "mustChangePassword", "quotaBytes"],
         additionalProperties: false,
         properties: {
           id: { type: "string" },
           email: { type: "string" },
           role: { type: "string", enum: ["admin", "user"] },
           mustChangePassword: { type: "boolean" },
+          quotaBytes: { type: "integer" },
         },
       },
     },

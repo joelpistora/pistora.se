@@ -2,6 +2,7 @@ import type {
   DirListing,
   ErrorEnvelope,
   FileMetadata,
+  UsageResponse,
 } from "shared";
 import { API_BASE } from "./config";
 import { ApiError, NetworkError } from "./errors";
@@ -223,4 +224,9 @@ export function makeDir(path: string, opts: RequestOpts = {}): Promise<MkdirResu
     method: "POST",
     signal: opts.signal,
   });
+}
+
+/** `GET /api/usage` — the caller's own storage footprint + quota (`quotaBytes: null` for admins). */
+export function getUsage(opts: RequestOpts = {}): Promise<UsageResponse> {
+  return request<UsageResponse>("/api/usage", { signal: opts.signal });
 }

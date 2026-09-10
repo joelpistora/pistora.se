@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Role, UserStatus } from "shared";
+import { DEFAULT_QUOTA_BYTES } from "./schema.js";
 
 /**
  * A `users` row as it lives in the database. LOCAL to `apps/api` on purpose — it
@@ -15,6 +16,8 @@ export interface UserRow {
   must_change_password: boolean;
   password_expires_at: number | null;
   status: UserStatus;
+  /** Per-user upload ceiling in bytes (v2). Ignored for admins. */
+  quota_bytes: number;
   created_at: number;
   updated_at: number;
   last_login_at: number | null;
@@ -36,6 +39,8 @@ export interface CreateUserInput {
   passwordHash: string | null;
   mustChangePassword: boolean;
   passwordExpiresAt: number | null;
+  /** Omit to take the column default (1 GiB). */
+  quotaBytes?: number;
   now: number;
 }
 
@@ -43,8 +48,8 @@ export function createUser(db: DatabaseSync, input: CreateUserInput): UserRow {
   db.prepare(
     `INSERT INTO users
        (id, email, role, password_hash, must_change_password, password_expires_at,
-        status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+        quota_bytes, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
   ).run(
     input.id,
     input.email,
@@ -52,6 +57,7 @@ export function createUser(db: DatabaseSync, input: CreateUserInput): UserRow {
     input.passwordHash,
     input.mustChangePassword ? 1 : 0,
     input.passwordExpiresAt,
+    input.quotaBytes ?? DEFAULT_QUOTA_BYTES,
     input.now,
     input.now,
   );
@@ -118,6 +124,19 @@ export function setStatus(
 ): void {
   db.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?").run(
     status,
+    now,
+    userId,
+  );
+}
+
+export function setQuota(
+  db: DatabaseSync,
+  userId: string,
+  quotaBytes: number,
+  now: number,
+): void {
+  db.prepare("UPDATE users SET quota_bytes = ?, updated_at = ? WHERE id = ?").run(
+    quotaBytes,
     now,
     userId,
   );
