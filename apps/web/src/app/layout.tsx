@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./styles/globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import HomeButton from "@/components/HomeButton";
 import UserMenu from "@/components/UserMenu";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Hanken Grotesk carries headings + body; JetBrains Mono is the only other
+// voice (filenames, paths, one-time passwords). Both are variable fonts,
+// self-hosted by next/font — no runtime request, no layout shift.
+const sans = Hanken_Grotesk({
+  variable: "--font-hanken-grotesk",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const mono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
@@ -34,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="min-h-screen bg-background text-foreground font-sans antialiased">
         <AuthProvider>
           <HomeButton />

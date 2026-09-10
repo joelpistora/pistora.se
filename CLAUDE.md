@@ -67,10 +67,17 @@ forward to the workspaces.
     `UserMenu`, `StorageBar`, `AdminUsers`, `LoginForm`, `ChangePasswordForm`.
   - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
   - `src/lib/format.ts` — `formatSize` / `formatDate`.
-  - `src/app/layout.tsx` — minimal root layout: Geist fonts on `<html>`, no
-    chrome; pages own their layout. `src/app/favicon.ico` (App Router
-    auto-serves it). `src/app/styles/globals.css` — Tailwind v4 only
-    (`@import "tailwindcss"` + `@theme`), no legacy v3 directives.
+  - `src/app/layout.tsx` — minimal root layout: Hanken Grotesk + JetBrains Mono
+    via `next/font` (`--font-hanken-grotesk` / `--font-jetbrains-mono`) on
+    `<html>`, `viewport.themeColor`, no chrome; pages own their layout.
+    `src/app/favicon.ico` (App Router auto-serves it; stale — regenerate from
+    `icon.svg`). `src/app/styles/globals.css` — Tailwind v4 only (`@import
+    "tailwindcss"` + `@theme inline`), no legacy v3 directives. **Design tokens:**
+    `--background` / `--surface` / `--foreground` (Fog & Steel grays),
+    `--accent` (steel blue — interactive) + `--accent-foreground`, `--amber`
+    (transient states) + `--amber-foreground`; light + `prefers-color-scheme`
+    dark. Steel-blue `:focus-visible` ring + accent `::selection` in the base
+    layer. See DECISIONS.md → "Visual identity".
   - `src/lib/api/` — typed, framework-agnostic `fetch` client for the storage
     API (`listDir`, `statEntry`, `downloadFile`/`downloadResponse`/`fileUrl`,
     `uploadFiles`, `moveEntry`, `deleteEntry`, `makeDir`, `getUsage`,

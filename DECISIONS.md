@@ -276,3 +276,23 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
 - **A quota can't be set below current usage.** `PATCH /api/admin/users/:id`
   with a `quotaBytes` under the user's stored bytes → `409`. The editor checks
   it client-side first (friendly message); the 409 is the backstop.
+
+## Visual identity (2026-09-10)
+
+- **Palette: "Fog & Steel" + amber.** Airy grays (`#f3f4f6` / `#2b2f34` light,
+  `#111417` / `#e3e5e8` dark) with a raised `--surface` for menus/modals/inputs.
+  One interactive accent — a desaturated **steel blue** (`#4f739c` / `#84a6c9`)
+  on primary buttons, links, the current breadcrumb, input + keyboard focus, the
+  storage-bar fill. A **burnt amber** (`#b4640f` / `#e0933c`) used sparingly for
+  *transient* states only: one-time-password callout + code, forced-password
+  banner, "pending first sign-in", storage bar ≥80%. Error red and the
+  API-status green/red stay as semantic colours, separate from the accent.
+  Tokens live in `globals.css` `:root` + a `prefers-color-scheme` dark block,
+  mapped through `@theme inline` (`bg-surface`, `text-accent`, `bg-amber/10`, …).
+  No theme toggle — follows the OS.
+- **Type: Hanken Grotesk + JetBrains Mono** (both variable, `next/font`,
+  self-hosted). One humanist grotesque for headings and body — legible at 13px,
+  which the file table needs — and a wide, friendly mono as the only second
+  voice (filenames, paths, OTPs). Chosen from a six-option specimen over Geist
+  (too neutral), IBM Plex (more corporate), a Bricolage/Newsreader display split
+  (more editorial), and an all-mono treatment (too costly for reading).

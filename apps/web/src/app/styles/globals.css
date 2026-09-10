@@ -36,8 +36,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-amber: var(--amber);
   --color-amber-foreground: var(--amber-foreground);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-hanken-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
 }
 
 /*
