@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { useDirectory } from "@/hooks/useDirectory";
 import Breadcrumbs from "./Breadcrumbs";
 import FileTable from "./FileTable";
@@ -15,6 +16,7 @@ function clean(path: string): string {
 export default function FileBrowser() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const path = clean(searchParams.get("path") ?? "");
 
   const { listing, loading, error, reload } = useDirectory(path);
@@ -36,6 +38,13 @@ export default function FileBrowser() {
 
   return (
     <div className="flex flex-col gap-4">
+      {user?.role === "admin" && (
+        <p className="text-xs text-foreground/50">
+          Admin view — browsing the entire storage root. Each account&apos;s files
+          live under <code className="font-mono">users/</code>.
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Breadcrumbs path={path} onNavigate={navigate} />
         <UploadButton path={path} onUploaded={reload} />

@@ -8,6 +8,7 @@ import {
   makeAdminApp,
   makeApp,
   makeAuthedApp,
+  multipartBody,
   seedUser,
 } from "../test-helpers.js";
 
@@ -228,6 +229,53 @@ test("reset-otp: new OTP works, old sessions are dropped", async (t) => {
     payload: { email: u.email, password: "old-password-1" },
   });
   assert.equal(oldLogin.statusCode, 401);
+});
+
+test("an admin's file view is the whole storage root, not a personal folder", async (t) => {
+  const { app, root, cookie } = await makeAdminApp(t);
+  const alice = seedUser(app, { email: "alice@pistora.test" });
+  const aliceCookie = await loginCookie(app, alice.email, alice.password);
+
+  // alice drops a file in her own space
+  const { payload, headers } = multipartBody([{ filename: "a.txt", content: "hi" }]);
+  await app.inject({
+    method: "POST",
+    url: "/api/files/",
+    payload,
+    headers: { ...headers, cookie: aliceCookie },
+  });
+
+  // admin sees the users/ tree from the root
+  const adminRoot = await app.inject({
+    method: "GET",
+    url: "/api/files/",
+    headers: { cookie },
+  });
+  assert.equal(adminRoot.statusCode, 200);
+  assert.deepEqual(
+    adminRoot.json().entries.map((e: { name: string }) => e.name),
+    ["users"],
+  );
+
+  const inAlice = await app.inject({
+    method: "GET",
+    url: `/api/files/users/${alice.id}`,
+    headers: { cookie },
+  });
+  assert.equal(inAlice.statusCode, 200);
+  assert.deepEqual(
+    inAlice.json().entries.map((e: { name: string }) => e.name),
+    ["a.txt"],
+  );
+  assert.ok(fs.existsSync(path.join(root, "users", alice.id, "a.txt")));
+
+  // admin still can't delete the root itself
+  const nuke = await app.inject({
+    method: "DELETE",
+    url: "/api/files/",
+    headers: { cookie },
+  });
+  assert.equal(nuke.statusCode, 400);
 });
 
 test("reset-otp / patch on an unknown user id is a 404", async (t) => {
