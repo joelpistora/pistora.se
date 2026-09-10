@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { createStorage, PathError, type Storage } from "./storage.js";
+import { createStorage, ensureUserDir, PathError, type Storage } from "./storage.js";
 
 let root: string;
 let storage: Storage;
@@ -102,4 +102,23 @@ test("forUser scopes to users/<id> when the dir exists", () => {
   const scoped = storage.forUser("joel");
   assert.equal(scoped.root, path.join(storage.root, "users/joel"));
   assert.equal(scoped.resolve("a.txt"), path.join(storage.root, "users/joel/a.txt"));
+});
+
+test("ensureUserDir creates users/<id>, is idempotent, and scopes there", () => {
+  const id = "11111111-2222-3333-4444-555555555555";
+  const scoped = ensureUserDir(storage, id);
+  assert.ok(fs.statSync(path.join(root, "users", id)).isDirectory());
+  assert.equal(scoped.root, path.join(storage.root, "users", id));
+  // second call must not throw
+  const again = ensureUserDir(storage, id);
+  assert.equal(again.root, scoped.root);
+});
+
+test("ensureUserDir rejects a bad id without touching the filesystem", () => {
+  assert.throws(() => ensureUserDir(storage, "../evil"), (err: unknown) => {
+    assert.ok(err instanceof PathError);
+    assert.equal(err.code, "bad_user");
+    return true;
+  });
+  assert.equal(fs.existsSync(path.join(root, "users", "..evil")), false);
 });

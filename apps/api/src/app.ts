@@ -3,7 +3,10 @@ import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { AppConfig } from "./config.js";
+import { openDb, type DatabaseSync } from "./db/index.js";
+import { deleteExpiredSessions } from "./db/sessions.js";
 import { registerErrorHandler } from "./http.js";
+import { createConsoleMailer, type Mailer } from "./mail/index.js";
 import { dirRoutes } from "./routes/dirs.js";
 import { fileRoutes } from "./routes/files.js";
 import { healthRoutes } from "./routes/health.js";
@@ -13,7 +16,17 @@ declare module "fastify" {
   interface FastifyInstance {
     config: AppConfig;
     storage: Storage;
+    db: DatabaseSync;
+    mailer: Mailer;
+    /** Injectable clock (epoch ms). Tests override it to drive session/OTP expiry. */
+    now: () => number;
   }
+}
+
+/** Optional collaborators `buildApp` takes so tests can supply fakes. */
+export interface BuildDeps {
+  mailer?: Mailer;
+  now?: () => number;
 }
 
 /**
@@ -21,7 +34,10 @@ declare module "fastify" {
  * binding, no `process.env` — so tests can `buildApp()` with a temp storage
  * root and drive it via `app.inject()`.
  */
-export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
+export async function buildApp(
+  config: AppConfig,
+  deps: BuildDeps = {},
+): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.logger,
     // Non-multipart bodies stay small; file parts are governed by multipart's
@@ -31,6 +47,15 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
 
   app.decorate("config", config);
   app.decorate("storage", createStorage(config.storageRoot));
+  app.decorate("now", deps.now ?? Date.now);
+
+  const db = openDb(config.dbPath);
+  app.decorate("db", db);
+  app.decorate("mailer", deps.mailer ?? createConsoleMailer(app.log));
+  app.addHook("onClose", () => {
+    db.close();
+  });
+  deleteExpiredSessions(db, app.now());
 
   await app.register(cors, {
     origin: config.corsOrigins,

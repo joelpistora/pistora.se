@@ -3,36 +3,52 @@ import os from "node:os";
 import path from "node:path";
 import type { TestContext } from "node:test";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app.js";
+import { buildApp, type BuildDeps } from "./app.js";
 import type { AppConfig } from "./config.js";
+import { createCaptureMailer } from "./mail/index.js";
+
+type CaptureMailer = ReturnType<typeof createCaptureMailer>;
 
 /**
- * Build an app backed by a fresh temp storage root, torn down after the test.
- * `loadConfig()` never runs here — the config is handed in directly, which is
- * what keeps tests isolated and parallel-safe.
+ * Build an app backed by a fresh temp storage root and a private in-memory
+ * database, torn down after the test. `loadConfig()` never runs here — the
+ * config is handed in directly, which is what keeps tests isolated and
+ * parallel-safe. The mailer is a capture double unless `deps.mailer` is given.
  */
 export async function makeApp(
   t: TestContext,
   overrides: Partial<AppConfig> = {},
-): Promise<{ app: FastifyInstance; root: string }> {
+  deps: BuildDeps = {},
+): Promise<{ app: FastifyInstance; root: string; mailer: CaptureMailer }> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pistora-test-"));
-  const app = await buildApp({
-    port: 0,
-    host: "127.0.0.1",
-    storageRoot: root,
-    maxFileBytes: 10 * 1024 * 1024,
-    maxFilesPerUpload: 5,
-    corsOrigins: ["http://localhost:3000"],
-    logger: false,
-    ...overrides,
-  });
+  const mailer = (deps.mailer as CaptureMailer | undefined) ?? createCaptureMailer();
+  const app = await buildApp(
+    {
+      port: 0,
+      host: "127.0.0.1",
+      storageRoot: root,
+      maxFileBytes: 10 * 1024 * 1024,
+      maxFilesPerUpload: 5,
+      corsOrigins: ["http://localhost:3000"],
+      logger: false,
+      dbPath: ":memory:",
+      sessionTtlHours: 720,
+      adminEmail: "admin@pistora.test",
+      cookieName: "pistora_session",
+      cookieSecure: false,
+      cookieDomain: undefined,
+      exposeInviteOtp: false,
+      ...overrides,
+    },
+    { mailer, ...deps },
+  );
 
   t.after(async () => {
     await app.close();
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  return { app, root };
+  return { app, root, mailer };
 }
 
 interface FilePart {

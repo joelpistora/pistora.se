@@ -21,6 +21,9 @@ out/
 build
 dist
 
+# auth datastore (SQLite file + WAL sidecars)
+/apps/api/data/
+
 # misc
 .DS_Store
 *.pem

@@ -29,6 +29,58 @@ export interface FileMetadata extends FileEntry {
   createdAt: string;
 }
 
+// ---- auth -----------------------------------------------------------------
+
+export type Role = "admin" | "user";
+export type UserStatus = "active" | "disabled";
+
+/** The current user as the API reports it to the browser. Never carries secrets. */
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: Role;
+  /** True until the user replaces their one-time password. Gates everything else. */
+  mustChangePassword: boolean;
+}
+
+/** Body of `POST /api/auth/login`, `POST /api/auth/change-password`, `GET /api/auth/me`. */
+export interface SessionResponse {
+  user: AuthUser;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/** A user row as the admin console sees it — richer than {@link AuthUser}, still no secrets. */
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: Role;
+  status: UserStatus;
+  mustChangePassword: boolean;
+  /** ISO 8601. */
+  createdAt: string;
+  /** ISO 8601, or null if the user has never logged in. */
+  lastLoginAt: string | null;
+}
+
+export interface AdminUserListResponse {
+  users: AdminUser[];
+}
+
+/** `POST /api/admin/users` — `otp` is only present when the API is configured to expose it. */
+export interface CreateUserResponse {
+  user: AdminUser;
+  otp?: string;
+}
+
 /**
  * Stable, machine-readable slugs the API puts in `ErrorEnvelope.error.code`.
  * The frontend branches on these. Mirrors `apps/api/src/http.ts` +
@@ -44,7 +96,14 @@ export type ErrorCode =
   | "unsupported_media_type"
   | "bad_path"
   | "path_escape"
-  | "forbidden";
+  | "forbidden"
+  | "unauthorized"
+  | "session_expired"
+  | "account_disabled"
+  | "password_change_required"
+  | "otp_expired"
+  | "weak_password"
+  | "too_many_requests";
 
 export interface ErrorEnvelope {
   error: {

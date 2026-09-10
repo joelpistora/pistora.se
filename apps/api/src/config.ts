@@ -18,6 +18,22 @@ export interface AppConfig {
   /** Passed straight to `@fastify/cors` `origin` — strings and/or RegExps. */
   corsOrigins: (string | RegExp)[];
   logger: boolean;
+
+  // ---- auth ----------------------------------------------------------------
+  /** SQLite file for the auth datastore, or `":memory:"` in tests. Dir is created if missing. */
+  dbPath: string;
+  /** How long a login session stays valid. */
+  sessionTtlHours: number;
+  /** Bootstrap admin identity — a row with this email + `role: "admin"` is ensured at startup. */
+  adminEmail: string;
+  /** Session cookie name. Not `__Host-` prefixed so it still works over http in local dev. */
+  cookieName: string;
+  /** `Secure` attribute on the session cookie. Set `COOKIE_SECURE=false` for local http. */
+  cookieSecure: boolean;
+  /** `Domain` attribute, or undefined for a host-only cookie (the right default on api.pistora.se). */
+  cookieDomain: string | undefined;
+  /** When true, `POST /api/admin/users` echoes the generated OTP in the response body (dev only). */
+  exposeInviteOtp: boolean;
 }
 
 const DEFAULT_CORS_ORIGINS = ["https://pistora.se", "https://www.pistora.se"];
@@ -47,6 +63,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
+  const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (!adminEmail) {
+    throw new Error(
+      "ADMIN_EMAIL is required — the bootstrap admin account (see apps/api/env.example)",
+    );
+  }
+
   const storageRoot = path.resolve(raw);
   let stat: fs.Stats;
   try {
@@ -70,5 +93,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
           .filter(Boolean)
       : [...DEFAULT_CORS_ORIGINS, ...LOOPBACK_ORIGINS],
     logger: env.LOG !== "off",
+
+    dbPath: env.DB_PATH?.trim() || path.resolve("data/pistora.db"),
+    sessionTtlHours: Number(env.SESSION_TTL_HOURS) || 720,
+    adminEmail,
+    cookieName: "pistora_session",
+    cookieSecure: env.COOKIE_SECURE?.trim().toLowerCase() !== "false",
+    cookieDomain: env.COOKIE_DOMAIN?.trim() || undefined,
+    exposeInviteOtp: env.EXPOSE_INVITE_OTP?.trim().toLowerCase() === "true",
   };
 }

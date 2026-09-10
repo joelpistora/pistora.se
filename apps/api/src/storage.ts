@@ -97,6 +97,21 @@ export function createStorage(root: string): Storage {
 }
 
 /**
+ * Make sure `users/<userId>` exists on disk, then return a {@link Storage}
+ * scoped to it. This is the wrapper every caller should use: `forUser()` alone
+ * throws if the directory is missing (it realpaths its root at construction),
+ * and creating the folder here keeps the API self-healing if the drive is wiped
+ * or a provisioning step was skipped. Idempotent.
+ */
+export function ensureUserDir(storage: Storage, userId: string): Storage {
+  if (!USER_ID.test(userId)) {
+    throw new PathError(400, "bad_user", "invalid user id");
+  }
+  fs.mkdirSync(path.join(storage.root, "users", userId), { recursive: true });
+  return storage.forUser(userId);
+}
+
+/**
  * Walk up from `target` until a path component exists on disk, realpath that,
  * then re-append the missing tail components. Lets us validate the destination
  * of a not-yet-created file without it existing.
