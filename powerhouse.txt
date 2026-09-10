@@ -1,0 +1,24 @@
+Skanepowerhouse is a website for the collective Skåne powerhouse.
+
+The collective does things related to music, DJ:ing, art, crafts, speakers, parties.
+
+The skanepowerhouse website should initially consist of a visually appealing landing page, and eventual contact.
+
+The front page should be pictures of us, while scrolling showcasing the text
+
+S
+K
+Å
+N
+E
+
+P
+O
+W
+E
+R
+H
+O
+U
+S
+E
