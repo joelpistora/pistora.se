@@ -38,6 +38,18 @@
   --color-amber-foreground: var(--amber-foreground);
   --font-sans: var(--font-hanken-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
+  --font-display: var(--font-bricolage-grotesque), var(--font-hanken-grotesk),
+    ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The wordmark and headings carry the display face; everything else is body. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
 }
 
 /*

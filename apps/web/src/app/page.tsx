@@ -4,7 +4,7 @@ import ApiStatus from "@/components/ApiStatus";
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 p-8 text-center">
-      <h1 className="text-3xl font-semibold">Pistora Web</h1>
+      <h1 className="text-5xl font-semibold">Pistora Web</h1>
 
       <ApiStatus />
 

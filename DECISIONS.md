@@ -290,9 +290,13 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   Tokens live in `globals.css` `:root` + a `prefers-color-scheme` dark block,
   mapped through `@theme inline` (`bg-surface`, `text-accent`, `bg-amber/10`, …).
   No theme toggle — follows the OS.
-- **Type: Hanken Grotesk + JetBrains Mono** (both variable, `next/font`,
-  self-hosted). One humanist grotesque for headings and body — legible at 13px,
-  which the file table needs — and a wide, friendly mono as the only second
-  voice (filenames, paths, OTPs). Chosen from a six-option specimen over Geist
-  (too neutral), IBM Plex (more corporate), a Bricolage/Newsreader display split
-  (more editorial), and an all-mono treatment (too costly for reading).
+- **Type: Bricolage Grotesque (display) · Hanken Grotesk (body) · JetBrains
+  Mono** (all variable, `next/font`, self-hosted). Bricolage — a contemporary
+  grotesque with deliberate irregularities — carries the wordmark and all
+  `h1`/`h2`/`h3` (a base-layer rule on `--font-display`); Hanken Grotesk does
+  body text (legible at 13px, which the file table needs); JetBrains Mono is the
+  only other voice (filenames, paths, OTPs). Chosen from a six-option specimen
+  over Geist (too neutral), plain Hanken throughout (no headline character),
+  IBM Plex (more corporate), a Newsreader serif display (more editorial), and an
+  all-mono treatment (too costly for reading). `FileProperties` overrides its
+  filename `h2` back to the body face.

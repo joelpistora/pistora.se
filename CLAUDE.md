@@ -67,9 +67,12 @@ forward to the workspaces.
     `UserMenu`, `StorageBar`, `AdminUsers`, `LoginForm`, `ChangePasswordForm`.
   - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
   - `src/lib/format.ts` — `formatSize` / `formatDate`.
-  - `src/app/layout.tsx` — minimal root layout: Hanken Grotesk + JetBrains Mono
-    via `next/font` (`--font-hanken-grotesk` / `--font-jetbrains-mono`) on
-    `<html>`, `viewport.themeColor`, no chrome; pages own their layout.
+  - `src/app/layout.tsx` — minimal root layout: Bricolage Grotesque (headings) +
+    Hanken Grotesk (body) + JetBrains Mono via `next/font`
+    (`--font-bricolage-grotesque` / `--font-hanken-grotesk` /
+    `--font-jetbrains-mono`) on `<html>`, `viewport.themeColor`, no chrome;
+    pages own their layout. A base-layer rule maps `h1/h2/h3` to
+    `--font-display`.
     `src/app/favicon.ico` (App Router auto-serves it; stale — regenerate from
     `icon.svg`). `src/app/styles/globals.css` — Tailwind v4 only (`@import
     "tailwindcss"` + `@theme inline`), no legacy v3 directives. **Design tokens:**
