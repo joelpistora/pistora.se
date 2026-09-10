@@ -277,6 +277,94 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
   }
 
   app.delete("/*", deleteOpts, handleDelete);
+
+  // ---- rename / move -----------------------------------------------------
+
+  const moveOpts = {
+    schema: {
+      body: {
+        type: "object",
+        required: ["to"],
+        additionalProperties: false,
+        properties: { to: { type: "string", minLength: 1, maxLength: 1024 } },
+      },
+      response: {
+        200: {
+          type: "object",
+          required: ["name", "type", "size", "modifiedAt", "path"],
+          additionalProperties: false,
+          properties: {
+            name: { type: "string" },
+            type: { type: "string", enum: ["file", "directory"] },
+            size: { type: "integer" },
+            modifiedAt: { type: "string" },
+            path: { type: "string" },
+          },
+        },
+        "4xx": { $ref: "error#" },
+        "5xx": { $ref: "error#" },
+      },
+    },
+  };
+
+  /**
+   * Rename or move `*` to the `to` path (both relative to the caller's root).
+   * A move never crosses the per-user boundary — `request.storage` is already
+   * scoped — so the total byte count is unchanged and no quota check is needed.
+   * Deliberately strict: the destination's parent folder must already exist (no
+   * implicit `mkdir -p`) and nothing may sit at the destination (no silent
+   * overwrite, unlike upload).
+   */
+  async function handleMove(request: FastifyRequest, reply: FastifyReply) {
+    const rel = relPath(request);
+    if (normaliseRel(rel) === "") {
+      throw app.httpErrors.badRequest("refusing to move the storage root");
+    }
+    const destRel = normaliseRel((request.body as { to: string }).to);
+    if (destRel === "") {
+      throw app.httpErrors.badRequest("a destination path is required");
+    }
+
+    const srcAbs = request.storage.resolve(rel);
+    const destAbs = request.storage.resolve(destRel);
+    if (srcAbs === destAbs) {
+      throw app.httpErrors.badRequest("source and destination are the same");
+    }
+
+    let srcStat: fs.Stats;
+    try {
+      srcStat = await fsp.stat(srcAbs);
+    } catch {
+      throw app.httpErrors.notFound(`no such path: ${rel}`);
+    }
+
+    // A folder can't be moved into itself or one of its own descendants.
+    if (
+      srcStat.isDirectory() &&
+      (destAbs + path.sep).startsWith(srcAbs + path.sep)
+    ) {
+      throw app.httpErrors.badRequest("cannot move a folder into itself");
+    }
+
+    const destParent = await fsp.stat(path.dirname(destAbs)).catch(() => null);
+    if (!destParent?.isDirectory()) {
+      throw app.httpErrors.notFound(
+        `destination folder does not exist: ${path.posix.dirname(destRel) || "/"}`,
+      );
+    }
+
+    if (await fsp.stat(destAbs).then(() => true, () => false)) {
+      throw app.httpErrors.conflict(`something already exists at ${destRel}`);
+    }
+
+    await fsp.rename(srcAbs, destAbs);
+
+    const s = await fsp.stat(destAbs);
+    reply.code(200);
+    return { ...toEntry(path.basename(destAbs), s), path: destRel };
+  }
+
+  app.patch("/*", moveOpts, handleMove);
 };
 
 // ---- helpers ---------------------------------------------------------------

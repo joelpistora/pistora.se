@@ -232,6 +232,129 @@ test("overwriting a file frees its bytes for the quota check", async (t) => {
   assert.equal(replace.statusCode, 201);
 });
 
+// ---- rename / move ----------------------------------------------------
+
+test("rename a file in place", async (t) => {
+  const { app, userDir, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await seedFile(inject, "docs", "old.txt", "data");
+
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/docs/old.txt",
+    payload: { to: "docs/new.txt" },
+  });
+  assert.equal(res.statusCode, 200, res.payload);
+  assert.equal(res.json().name, "new.txt");
+  assert.equal(res.json().path, "docs/new.txt");
+  assert.equal(fs.existsSync(path.join(userDir, "docs/old.txt")), false);
+  assert.equal(fs.readFileSync(path.join(userDir, "docs/new.txt"), "utf8"), "data");
+});
+
+test("move a file into another existing folder", async (t) => {
+  const { app, userDir, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await seedFile(inject, "a", "f.txt", "x");
+  await inject({ method: "POST", url: "/api/dirs/b" });
+
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/a/f.txt",
+    payload: { to: "b/f.txt" },
+  });
+  assert.equal(res.statusCode, 200, res.payload);
+  assert.equal(fs.existsSync(path.join(userDir, "a/f.txt")), false);
+  assert.equal(fs.existsSync(path.join(userDir, "b/f.txt")), true);
+});
+
+test("rename a non-empty folder carries its contents", async (t) => {
+  const { app, userDir, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await seedFile(inject, "project", "readme.md", "hi");
+
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/project",
+    payload: { to: "archive" },
+  });
+  assert.equal(res.statusCode, 200, res.payload);
+  assert.equal(res.json().type, "directory");
+  assert.equal(
+    fs.readFileSync(path.join(userDir, "archive/readme.md"), "utf8"),
+    "hi",
+  );
+});
+
+test("move refuses to overwrite an existing entry", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await seedFile(inject, "", "one.txt", "1");
+  await seedFile(inject, "", "two.txt", "2");
+
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/one.txt",
+    payload: { to: "two.txt" },
+  });
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.json().error.code, "conflict");
+});
+
+test("move into a folder that doesn't exist is a 404", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await seedFile(inject, "", "x.txt", "x");
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/x.txt",
+    payload: { to: "nope/x.txt" },
+  });
+  assert.equal(res.statusCode, 404);
+});
+
+test("move refuses the storage root and a missing source", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+
+  const root = await inject({
+    method: "PATCH",
+    url: "/api/files/",
+    payload: { to: "x" },
+  });
+  assert.equal(root.statusCode, 400);
+
+  const missing = await inject({
+    method: "PATCH",
+    url: "/api/files/ghost.txt",
+    payload: { to: "other.txt" },
+  });
+  assert.equal(missing.statusCode, 404);
+});
+
+test("move rejects a traversal in the destination", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await seedFile(inject, "", "x.txt", "x");
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/x.txt",
+    payload: { to: "../escape.txt" },
+  });
+  assert.ok(res.statusCode === 400 || res.statusCode === 403, `got ${res.statusCode}`);
+});
+
+test("move a folder into its own subtree is rejected", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t);
+  const inject = client(app, cookie);
+  await inject({ method: "POST", url: "/api/dirs/parent/child" });
+  const res = await inject({
+    method: "PATCH",
+    url: "/api/files/parent",
+    payload: { to: "parent/child/parent" },
+  });
+  assert.equal(res.statusCode, 400);
+});
+
 test("an admin uploading into a user's folder bypasses the quota", async (t) => {
   const { app, root, cookie } = await makeAdminApp(t, { defaultQuotaBytes: 10 });
   const u = seedUser(app, { email: "small@pistora.test", quotaBytes: 10 });

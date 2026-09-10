@@ -236,3 +236,31 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   Verify: `grep -r localhost:3001 apps/web/out/_next/` must be empty.
 - **Auth = email + password authentication (possible through google).** I want to be able to control who has access to the file storage solution. The persons that are allowed in are the people that should get a personal storage location on the harddrive. When a new user is created, they get a personal folder on the storage hard drive. They are only allowed to see/edit/upload files inside that folder. All of this should happen automatically. The user folders should be either be in root of the hard drive or in some other sub folder that I have not decided yet.
 - **Adding of users.** I (Admin) should have special priveleges on the website. I should have a menu where I can add users. When I add users, an auto generated email should be sent to the users email with a one-time password. When they log in, they are forced to update their password first time. 
+
+## File & folder actions (2026-09-10)
+
+- **Per-entry actions live in a kebab (⋮) menu**, not inline buttons or
+  click-to-select. Every file and folder row has one. Files: Download, Rename,
+  Properties, Delete. Folders: Rename, Properties, Delete. Folder rows still
+  navigate on click; the menu stops click propagation so it works inside the
+  row. `KebabMenu` is a shared component (`position: fixed` menu so the table's
+  horizontal scroll can't clip it). (`AdminUsers` has its own near-identical
+  `RowActions` — left as-is; a later consolidation onto `KebabMenu` is fine.)
+- **Rename / move = `PATCH /api/files/<path>` `{ to }`.** `to` is a destination
+  path relative to the caller's root; a same-folder `to` is a plain rename. The
+  move never crosses the per-user boundary (`request.storage` is already
+  scoped), so bytes are unchanged and there is **no quota re-check**.
+  Deliberately strict, unlike upload: the destination's parent folder must
+  already exist (no implicit `mkdir -p`) and nothing may sit at the destination
+  (**no silent overwrite** → `409`). Also refuses the storage root, a
+  folder-into-its-own-subtree move, and (via `storage.resolve`) any traversal.
+  The UI only exposes rename today; the endpoint already supports an arbitrary
+  destination so "move to folder" is a pure frontend addition later.
+- **Folder delete warns based on contents.** The UI lists the folder first; the
+  confirm text names the item count and only passes `?recursive=1` when the
+  folder is non-empty (or its contents couldn't be read). Backend unchanged —
+  `DELETE` already refuses a non-empty dir without the flag.
+- **Properties = a modal over `?stat=1`.** Type, full path, exact byte size,
+  created + modified timestamps. Read-only.
+- **New folder = an inline toggle-form** next to Upload (not a `window.prompt`).
+  Calls the existing `POST /api/dirs` (`mkdir -p`, idempotent).

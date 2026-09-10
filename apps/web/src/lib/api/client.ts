@@ -2,6 +2,7 @@ import type {
   DirListing,
   ErrorEnvelope,
   FileMetadata,
+  MoveResult,
   UsageResponse,
 } from "shared";
 import { API_BASE } from "./config";
@@ -203,6 +204,24 @@ export function uploadFiles(
   return request<UploadResult>(`/api/files/${encodePath(path)}`, {
     method: "POST",
     body: form,
+    signal: opts.signal,
+  });
+}
+
+/**
+ * `PATCH /api/files/<from>` — rename or move an entry. `to` is the destination
+ * path relative to the storage root; its parent folder must already exist and
+ * nothing may be there yet (no overwrite). A same-folder `to` is a plain rename.
+ */
+export function moveEntry(
+  from: string,
+  to: string,
+  opts: RequestOpts = {},
+): Promise<MoveResult> {
+  return request<MoveResult>(`/api/files/${encodePath(from)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ to }),
     signal: opts.signal,
   });
 }

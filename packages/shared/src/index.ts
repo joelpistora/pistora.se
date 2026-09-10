@@ -29,6 +29,12 @@ export interface FileMetadata extends FileEntry {
   createdAt: string;
 }
 
+/** `PATCH /api/files/<path>` — the entry at its new location after a rename or move. */
+export interface MoveResult extends FileEntry {
+  /** Normalised destination path from the storage root. */
+  path: string;
+}
+
 // ---- auth -----------------------------------------------------------------
 
 export type Role = "admin" | "user";

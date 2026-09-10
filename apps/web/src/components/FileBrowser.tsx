@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useDirectory } from "@/hooks/useDirectory";
 import Breadcrumbs from "./Breadcrumbs";
 import FileTable from "./FileTable";
+import NewFolderButton from "./NewFolderButton";
 import StorageBar from "./StorageBar";
 import UploadButton from "./UploadButton";
 
@@ -21,17 +22,15 @@ export default function FileBrowser() {
   const path = clean(searchParams.get("path") ?? "");
 
   const { listing, loading, error, reload } = useDirectory(path);
-  const [selected, setSelected] = useState<string | null>(null);
   const [usageKey, setUsageKey] = useState(0);
 
-  const afterUpload = useCallback(() => {
+  const afterChange = useCallback(() => {
     reload();
     setUsageKey((k) => k + 1);
   }, [reload]);
 
   const navigate = useCallback(
     (next: string) => {
-      setSelected(null);
       const target = clean(next);
       router.push(target ? `/files?path=${encodeURIComponent(target)}` : "/files");
     },
@@ -56,7 +55,10 @@ export default function FileBrowser() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Breadcrumbs path={path} onNavigate={navigate} />
-        <UploadButton path={path} onUploaded={afterUpload} />
+        <div className="flex flex-wrap items-center gap-2">
+          <NewFolderButton path={path} onCreated={afterChange} />
+          <UploadButton path={path} onUploaded={afterChange} />
+        </div>
       </div>
 
       {loading && <p className="text-sm text-foreground/60">Loading…</p>}
@@ -73,11 +75,8 @@ export default function FileBrowser() {
         <FileTable
           path={path}
           entries={listing.entries}
-          selected={selected}
           onOpenDir={openDir}
-          onSelectFile={(name) =>
-            setSelected((cur) => (cur === name ? null : name))
-          }
+          onMutated={afterChange}
         />
       )}
     </div>

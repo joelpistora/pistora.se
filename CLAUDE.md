@@ -57,11 +57,14 @@ forward to the workspaces.
   - `src/app/files/page.tsx` — thin Server Component; one-line blurb + wraps
     `<FileBrowser>` in `<Suspense>` (required — `FileBrowser` uses
     `useSearchParams`).
-  - `src/components/` — `FileBrowser` (owns path from `?path=`, selection, upload
-    state), `Breadcrumbs`, `FileTable` (Name/Size/Modified; folder row →
-    navigate, file row → select → Download link), `UploadButton` (one file,
+  - `src/components/` — `FileBrowser` (owns path from `?path=`, usage-refresh
+    key), `Breadcrumbs`, `FileTable` (Name/Size/Modified; folder row →
+    navigate; every row has a `KebabMenu` (⋮) — Download (files), Rename
+    (inline), Properties, Delete), `KebabMenu` (shared fixed-position dropdown),
+    `FileProperties` (stat modal), `NewFolderButton` + `UploadButton` (inline,
     into the current folder), `ApiStatus`, `HomeButton` (fixed top-left house
-    icon → `/`, hidden on `/`).
+    icon → `/`, hidden on `/`). Auth UI: `AuthProvider`, `RequireAuth`,
+    `UserMenu`, `StorageBar`, `AdminUsers`, `LoginForm`, `ChangePasswordForm`.
   - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
   - `src/lib/format.ts` — `formatSize` / `formatDate`.
   - `src/app/layout.tsx` — minimal root layout: Geist fonts on `<html>`, no
@@ -70,7 +73,9 @@ forward to the workspaces.
     (`@import "tailwindcss"` + `@theme`), no legacy v3 directives.
   - `src/lib/api/` — typed, framework-agnostic `fetch` client for the storage
     API (`listDir`, `statEntry`, `downloadFile`/`downloadResponse`/`fileUrl`,
-    `uploadFiles`, `deleteEntry`, `makeDir`, `getHealth`, `ping`). Throws
+    `uploadFiles`, `moveEntry`, `deleteEntry`, `makeDir`, `getUsage`,
+    `getHealth`, `ping`; plus `auth.ts` — `login`/`logout`/`getMe`/… and the
+    admin client fns). Throws
     `ApiError` (carries the envelope `code`) / `NetworkError`. Base URL from
     `NEXT_PUBLIC_API_BASE` (default `http://localhost:3001`; see
     `apps/web/env.example`) — **inlined at build time**, so production builds
@@ -98,8 +103,9 @@ forward to the workspaces.
     Every fs operation in a route goes through it. `forUser()` is the seam
     per-user isolation slots into when auth lands.
   - `src/routes/` — `health.ts` (`/health`, `/api/ping`), `files.ts`
-    (`/api/files/*`: list / stat / download / upload / delete), `dirs.ts`
-    (`/api/dirs/*`: `mkdir -p`). `src/http.ts` = error envelope
+    (`/api/files/*`: list / stat / download / upload / delete / `PATCH` rename-move),
+    `dirs.ts` (`/api/dirs/*`: `mkdir -p`), plus `auth.ts`, `admin.ts`, `usage.ts`.
+    `src/http.ts` = error envelope
     `{ error: { code, message } }`. `src/mime.ts`. DTOs moved to
     `packages/shared` in Phase 2 (imported as `import type { ... } from "shared"`).
   - Dev: `tsx watch` runs `.ts` directly. Prod: `tsc` emits `src/` → `dist/`
@@ -110,8 +116,12 @@ forward to the workspaces.
     directory, byte stream for a file (`?stat=1` for metadata, `?download=1`
     forces attachment). `POST /api/files/<dir>` multipart → streamed to a temp
     file then atomically renamed; overwrites allowed. `DELETE` (`?recursive=1`
-    for a non-empty dir). `POST /api/dirs/<path>` = `mkdir -p`. Range requests
-    not supported yet (`Accept-Ranges: none`).
+    for a non-empty dir). `PATCH /api/files/<path>` `{ to }` = rename/move —
+    parent must exist, no overwrite (`409`), no quota re-check (same per-user
+    root). `POST /api/dirs/<path>` = `mkdir -p`. Range requests
+    not supported yet (`Accept-Ranges: none`). (Everything but `/health` +
+    `/api/auth/*` is now behind the session-cookie auth hook; `request.storage`
+    is scoped to `users/<email>/` per caller — admins get the whole root.)
 - **`packages/shared`** — created in Phase 2. Holds the storage DTOs (`FileEntry`,
   `DirListing`, `FileMetadata`, `ErrorEnvelope`, `ErrorCode`) imported by both
   apps. `"type": "module"`, `private`, **no build step** — `package.json#exports`
@@ -198,8 +208,10 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       browser (`/files`: browse, breadcrumbs, single-file upload, download) are
       built and exercised end-to-end — locally over LAN **and** in production
       against the home API via the quick tunnel (branch `phase-2-foundation`).
-      **Remaining (optional polish, not blocking anything):** delete,
-      new-folder, drag-drop, upload progress, multi-select, mobile layout.
+      Delete, rename/move, new-folder, and a properties view landed 2026-09-10
+      (kebab menu per row). **Remaining (optional polish, not blocking
+      anything):** drag-drop, upload progress, multi-select, mobile layout,
+      a "move to folder" picker (endpoint already supports it).
 - [~] **Phase 3 – Expose to the internet (running on a quick tunnel):** the
       static `apps/web` build is live on pistora.se and reaches the home API
       through a Cloudflare **quick** tunnel end-to-end. **Remaining:** migrate
@@ -236,9 +248,10 @@ migration, more Phase 2 polish, or Phase 4 auth once migrated.**
   upload → list → stat → download → delete → 404). **UI:** `/` "Pistora Web" hub
   (API-status ping + Open files / Music-soon / Powerhouse buttons); `/files`
   file browser — table listing, breadcrumb
-  navigation via `?path=`, folder-click to descend, file select → Download,
-  single-file upload into the current folder. Plain-text loading/empty/error
-  states. No delete/new-folder/drag-drop yet.
+  navigation via `?path=`, folder-click to descend, a per-row kebab menu
+  (Download / Rename / Properties / Delete, folder delete warns on contents),
+  a New folder button, single-file upload into the current folder. Plain-text
+  loading/empty/error states. No drag-drop/upload-progress/multi-select yet.
 - `packages/shared`: created, holds the storage DTOs + `ErrorCode`; consumed as
   source by both apps, no build step. First real use of the workspace.
 - **Deployed:** the `apps/web` static export (`out/`) is uploaded to pistora.se's
@@ -260,16 +273,17 @@ holder / Hostek admin to change the nameservers.
 3. ~~Typed API client in `apps/web` (`src/lib/api/`).~~ **Done** — `fetch`
    wrapper over `/api/files` + `/api/dirs`, `ApiError`/`NetworkError`, base URL
    from `NEXT_PUBLIC_API_BASE`.
-4. ~~File-browser UI~~ **Done (v1):** `/files` — table listing + breadcrumbs
-   (`?path=`), folder navigation, single-file upload, download. **Deferred to a
-   follow-up:** delete, new-folder, drag-drop, upload progress, multi-select.
+4. ~~File-browser UI~~ **Done (v1 + actions):** `/files` — table listing +
+   breadcrumbs (`?path=`), folder navigation, single-file upload, download,
+   per-row kebab menu (rename / properties / delete), new folder. **Deferred:**
+   drag-drop, upload progress, multi-select, move-to-folder picker.
 5. ~~Prove upload/download end-to-end~~ **Done** — locally over `localhost`, and
    in production (pistora.se → quick tunnel → home API).
 
 **Phase 2 foundation is complete.** Merge `phase-2-foundation` → `main`. Then
 pick the next thread freely: Phase 3 DNS migration, Phase 2 polish features
-(delete / new-folder / drag-drop / …), or Phase 4 auth (only *after* the
-migration).
+(drag-drop / upload progress / multi-select / …), or Phase 4 auth (only *after*
+the migration).
 
 In dev (no `CORS_ORIGINS` set) the API allows pistora.se + **any**
 `http(s)://localhost:<port>` / `127.0.0.1`, so it doesn't matter which port Next
@@ -280,9 +294,11 @@ When the WD Elements 5TB arrives: plug into Windows, point `STORAGE_ROOT` at
 parallel.
 
 **Known issues / follow-ups:**
-- File-browser UI is v1 only — no delete, new-folder, drag-drop, upload
-  progress, or multi-select yet. Desktop-first (table scrolls on mobile, no
-  dedicated small-screen layout). Follow-up job.
+- File-browser UI has browse / upload / download / rename-move / delete /
+  new-folder / properties. Still missing: drag-drop, upload progress,
+  multi-select, a move-to-folder picker (the `PATCH` endpoint already takes an
+  arbitrary destination). Desktop-first (table scrolls on mobile, no dedicated
+  small-screen layout). Follow-up job.
 - `NEXT_PUBLIC_API_BASE` is inlined into the `apps/web` bundle **at build
   time**, and `next build` reads `apps/web/.env.local` too — so the deploy build
   only points at the right API if `.env.local` (or an explicit
