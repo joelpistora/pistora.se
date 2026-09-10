@@ -159,6 +159,11 @@ export function touchLastLogin(db: DatabaseSync, userId: string, now: number): v
   db.prepare("UPDATE users SET last_login_at = ? WHERE id = ?").run(now, userId);
 }
 
+/** Delete the user row. `sessions` rows cascade (FK ON DELETE CASCADE). */
+export function deleteUser(db: DatabaseSync, userId: string): void {
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+}
+
 /** Count admins, by default only the ones who can actually still sign in. */
 export function countAdmins(
   db: DatabaseSync,

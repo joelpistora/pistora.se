@@ -37,6 +37,7 @@ export {
   createUser,
   updateUser,
   resetOtp,
+  deleteUser,
 } from "./auth";
 export type {
   HealthResponse,

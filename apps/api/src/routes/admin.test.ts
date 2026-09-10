@@ -334,6 +334,70 @@ test("PATCH quotaBytes: updates the user's ceiling and shows up on their /me", a
   assert.equal(bad.statusCode, 400);
 });
 
+test("DELETE removes the account, its sessions, and its folder", async (t) => {
+  const { app, root, cookie } = await makeAdminApp(t);
+  const victim = seedUser(app, { email: "gone@example.com" });
+  const victimCookie = await loginCookie(app, victim.email, victim.password);
+
+  const mb = multipartBody([{ filename: "keep.txt", content: "data" }]);
+  await app.inject({
+    method: "POST",
+    url: "/api/files/",
+    payload: mb.payload,
+    headers: { cookie: victimCookie, ...mb.headers },
+  });
+  assert.ok(fs.existsSync(path.join(root, "users", victim.email, "keep.txt")));
+
+  const del = await app.inject({
+    method: "DELETE",
+    url: `/api/admin/users/${victim.id}`,
+    headers: { cookie },
+  });
+  assert.equal(del.statusCode, 204);
+
+  // row gone
+  assert.equal(
+    app.db.prepare("SELECT 1 FROM users WHERE id = ?").get(victim.id),
+    undefined,
+  );
+  // session gone
+  assert.equal(
+    (await app.inject({ method: "GET", url: "/api/auth/me", headers: { cookie: victimCookie } }))
+      .statusCode,
+    401,
+  );
+  // folder gone
+  assert.equal(fs.existsSync(path.join(root, "users", victim.email)), false);
+});
+
+test("DELETE refuses to remove yourself; unknown id is a 404", async (t) => {
+  const { app, adminId, cookie } = await makeAdminApp(t);
+
+  const self = await app.inject({
+    method: "DELETE",
+    url: `/api/admin/users/${adminId}`,
+    headers: { cookie },
+  });
+  assert.equal(self.statusCode, 409);
+
+  const ghost = await app.inject({
+    method: "DELETE",
+    url: "/api/admin/users/ghost",
+    headers: { cookie },
+  });
+  assert.equal(ghost.statusCode, 404);
+});
+
+test("DELETE by a non-admin is a 403", async (t) => {
+  const { app, cookie } = await makeAuthedApp(t);
+  const res = await app.inject({
+    method: "DELETE",
+    url: "/api/admin/users/anyone",
+    headers: { cookie },
+  });
+  assert.equal(res.statusCode, 403);
+});
+
 test("reset-otp / patch on an unknown user id is a 404", async (t) => {
   const { app, cookie } = await makeAdminApp(t);
   for (const req of [

@@ -1,3 +1,4 @@
+import fsp from "node:fs/promises";
 import type { FastifyPluginAsync } from "fastify";
 import type {
   AdminUser,
@@ -11,6 +12,7 @@ import { deleteSessionsForUser } from "../db/sessions.js";
 import {
   countAdmins,
   createUser,
+  deleteUser,
   getUserByEmail,
   getUserById,
   issueOtp,
@@ -264,6 +266,53 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
       const user = toAdminUser(getUserById(app.db, target.id)!);
       return app.config.exposeInviteOtp ? { user, otp } : { user };
+    },
+  );
+
+  // ---- DELETE /api/admin/users/:id ----------------------------------
+
+  app.delete<{ Params: { id: string } }>(
+    "/users/:id",
+    {
+      schema: {
+        response: {
+          204: { type: "null" },
+          ...errorResponses,
+        },
+      },
+    },
+    async (req, reply) => {
+      const target = getUserById(app.db, req.params.id);
+      if (!target) throw app.httpErrors.notFound("no such user");
+      if (target.id === req.user!.id) {
+        throw app.httpErrors.conflict("you cannot delete your own account");
+      }
+      if (
+        target.role === "admin" &&
+        target.status === "active" &&
+        countAdmins(app.db, { activeOnly: true }) <= 1
+      ) {
+        throw app.httpErrors.conflict("at least one active admin is required");
+      }
+
+      deleteSessionsForUser(app.db, target.id);
+      deleteUser(app.db, target.id);
+
+      // Remove the user's folder and everything in it. Scoped to exactly
+      // `users/<email>/` (their own dedicated space) — `forUser` validates the
+      // key and returns a realpath'd absolute path, or throws if there's no
+      // folder (e.g. an admin, who has none).
+      try {
+        await fsp.rm(app.storage.forUser(target.email).root, {
+          recursive: true,
+          force: true,
+        });
+      } catch {
+        // no folder to remove — fine
+      }
+
+      reply.code(204);
+      return null;
     },
   );
 };

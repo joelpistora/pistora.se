@@ -72,3 +72,10 @@ export function resetOtp(id: string): Promise<CreateUserResponse> {
     { method: "POST" },
   );
 }
+
+/** Permanently delete a user — account, sessions, and their entire folder. */
+export function deleteUser(id: string): Promise<void> {
+  return request<void>(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}

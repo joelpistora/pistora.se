@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   createUser,
+  deleteUser,
   listUsers,
   resetOtp,
   updateUser,
@@ -79,6 +80,94 @@ function QuotaEditor({
         Cancel
       </button>
     </span>
+  );
+}
+
+interface RowAction {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}
+
+/**
+ * A "⋮" button that drops a small menu. Positioned `fixed` from the button's
+ * rect so it isn't clipped by the table's horizontal-scroll container. Closes on
+ * outside-click, Escape, or any scroll.
+ */
+function RowActions({ actions, disabled }: { actions: RowAction[]; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const onClick = (e: MouseEvent) => {
+      if (
+        !btnRef.current?.contains(e.target as Node) &&
+        !menuRef.current?.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="User actions"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded border border-foreground/20 px-2 py-1 text-sm leading-none hover:bg-foreground/10 disabled:opacity-50"
+      >
+        ⋮
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{ position: "fixed", top: pos.top, right: pos.right }}
+          className="z-30 w-48 overflow-hidden rounded-md border border-foreground/15 bg-background py-1 text-sm shadow-lg"
+        >
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                a.onClick();
+              }}
+              className={`block w-full px-3 py-1.5 text-left transition-colors hover:bg-foreground/10 ${
+                a.danger ? "text-red-600" : ""
+              }`}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -215,7 +304,7 @@ export default function AdminUsers() {
                   <th className="py-2 pr-6 font-medium">Status</th>
                   <th className="py-2 pr-6 font-medium">Storage&nbsp;limit</th>
                   <th className="py-2 pr-6 font-medium whitespace-nowrap">Last sign-in</th>
-                  <th className="py-2 font-medium">Actions</th>
+                  <th className="py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,36 +336,43 @@ export default function AdminUsers() {
                     <td className="py-2 pr-6 whitespace-nowrap text-foreground/60">
                       {u.lastLoginAt ? formatDate(u.lastLoginAt) : "never"}
                     </td>
-                    <td className="py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={rowBusy === u.id}
-                          onClick={() =>
-                            runRowAction(u.id, () =>
-                              updateUser(u.id, {
-                                status: u.status === "disabled" ? "active" : "disabled",
+                    <td className="py-2 text-right">
+                      <RowActions
+                        disabled={rowBusy === u.id}
+                        actions={[
+                          {
+                            label: u.status === "disabled" ? "Enable" : "Disable",
+                            onClick: () =>
+                              runRowAction(u.id, () =>
+                                updateUser(u.id, {
+                                  status:
+                                    u.status === "disabled" ? "active" : "disabled",
+                                }),
+                              ),
+                          },
+                          {
+                            label: "Reset one-time password",
+                            onClick: () =>
+                              runRowAction(u.id, async () => {
+                                const res = await resetOtp(u.id);
+                                setNotice({ email: res.user.email, otp: res.otp });
                               }),
-                            )
-                          }
-                          className="rounded border border-foreground/20 px-2 py-1 text-xs hover:bg-foreground/10 disabled:opacity-50"
-                        >
-                          {u.status === "disabled" ? "Enable" : "Disable"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={rowBusy === u.id}
-                          onClick={() =>
-                            runRowAction(u.id, async () => {
-                              const res = await resetOtp(u.id);
-                              setNotice({ email: res.user.email, otp: res.otp });
-                            })
-                          }
-                          className="rounded border border-foreground/20 px-2 py-1 text-xs hover:bg-foreground/10 disabled:opacity-50"
-                        >
-                          Reset OTP
-                        </button>
-                      </div>
+                          },
+                          {
+                            label: "Remove user…",
+                            danger: true,
+                            onClick: () => {
+                              if (
+                                window.confirm(
+                                  `Remove ${u.email}? This permanently deletes their account and every file in their folder.`,
+                                )
+                              ) {
+                                runRowAction(u.id, () => deleteUser(u.id));
+                              }
+                            },
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
