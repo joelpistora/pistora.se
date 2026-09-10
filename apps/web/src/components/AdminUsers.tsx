@@ -359,7 +359,7 @@ export default function AdminUsers() {
                               }),
                           },
                           {
-                            label: "Remove user…",
+                            label: "Remove user",
                             danger: true,
                             onClick: () => {
                               if (
