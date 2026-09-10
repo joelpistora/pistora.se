@@ -28,7 +28,7 @@ export const dirRoutes: FastifyPluginAsync = async (app) => {
       if (rel === "" || rel === ".") {
         throw app.httpErrors.badRequest("a directory name is required");
       }
-      const abs = app.storage.resolve(rel);
+      const abs = request.storage.resolve(rel);
       await fsp.mkdir(abs, { recursive: true });
       reply.code(201);
       return { path: rel };

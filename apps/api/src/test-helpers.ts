@@ -1,11 +1,16 @@
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { TestContext } from "node:test";
 import type { FastifyInstance } from "fastify";
 import { buildApp, type BuildDeps } from "./app.js";
+import { generateUserId, hashPassword } from "./auth/crypto.js";
 import type { AppConfig } from "./config.js";
+import { createUser } from "./db/users.js";
 import { createCaptureMailer } from "./mail/index.js";
+import type { Role, UserStatus } from "shared";
+import { ensureUserDir } from "./storage.js";
 
 type CaptureMailer = ReturnType<typeof createCaptureMailer>;
 
@@ -49,6 +54,87 @@ export async function makeApp(
   });
 
   return { app, root, mailer };
+}
+
+interface SeedUserInput {
+  email: string;
+  password?: string;
+  role?: Role;
+  status?: UserStatus;
+  /** Default false — pass true to simulate a fresh invite that hasn't set a password. */
+  mustChange?: boolean;
+  /** epoch ms; only relevant with mustChange. */
+  passwordExpiresAt?: number | null;
+}
+
+/** Insert a user straight through the DAO and provision their folder. */
+export function seedUser(
+  app: FastifyInstance,
+  input: SeedUserInput,
+): { id: string; email: string; password: string } {
+  const id = generateUserId();
+  const password = input.password ?? "test-password-123";
+  ensureUserDir(app.storage, id);
+  createUser(app.db, {
+    id,
+    email: input.email.trim().toLowerCase(),
+    role: input.role ?? "user",
+    passwordHash: hashPassword(password),
+    mustChangePassword: input.mustChange ?? false,
+    passwordExpiresAt: input.passwordExpiresAt ?? null,
+    now: app.now(),
+  });
+  if (input.status && input.status !== "active") {
+    app.db
+      .prepare("UPDATE users SET status = ? WHERE id = ?")
+      .run(input.status, id);
+  }
+  return { id, email: input.email, password };
+}
+
+/** Log in and return the `name=value` cookie string to hand back as a `cookie` header. */
+export async function loginCookie(
+  app: FastifyInstance,
+  email: string,
+  password: string,
+): Promise<string> {
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/auth/login",
+    payload: { email, password },
+  });
+  assert.equal(res.statusCode, 200, res.payload);
+  const raw = res.headers["set-cookie"];
+  const header = Array.isArray(raw) ? raw[0]! : raw!;
+  return header.split(";")[0]!;
+}
+
+/**
+ * `makeApp` + one seeded active non-admin user, already logged in. Returns the
+ * cookie plus that user's id and on-disk folder for path assertions.
+ */
+export async function makeAuthedApp(
+  t: TestContext,
+  overrides: Partial<AppConfig> = {},
+): Promise<{
+  app: FastifyInstance;
+  root: string;
+  mailer: CaptureMailer;
+  userId: string;
+  userDir: string;
+  cookie: string;
+}> {
+  const { app, root, mailer } = await makeApp(t, overrides);
+  const user = seedUser(app, { email: "user@pistora.test" });
+  const cookie = await loginCookie(app, user.email, user.password);
+  return {
+    app,
+    root,
+    mailer,
+    userId: user.id,
+    userDir: path.join(root, "users", user.id),
+    cookie,
+  };
 }
 
 interface FilePart {

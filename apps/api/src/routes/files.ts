@@ -54,9 +54,10 @@ const querystringSchema = {
 } as const;
 
 /**
- * The file namespace, mounted at `/api/files`. One wildcard path segment (`*`)
- * carries the relative path; GET disambiguates file vs directory with `stat()`.
- * Phase 1 serves a single shared namespace — no auth, no per-user roots yet.
+ * The file namespace, mounted at `/api/files` inside the guarded scope. One
+ * wildcard path segment (`*`) carries the relative path; GET disambiguates file
+ * vs directory with `stat()`. `request.storage` is scoped to the caller's
+ * `users/<id>/` root by the auth hook, so every path here is already per-user.
  */
 export const fileRoutes: FastifyPluginAsync = async (app) => {
   function relPath(request: FastifyRequest): string {
@@ -78,7 +79,7 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
   async function handleGet(request: FastifyRequest, reply: FastifyReply) {
     const rel = relPath(request);
     const query = request.query as FilesQuery;
-    const abs = app.storage.resolve(rel);
+    const abs = request.storage.resolve(rel);
 
     let stats: fs.Stats;
     try {
@@ -129,7 +130,7 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const rel = relPath(request);
-    const dirAbs = app.storage.resolve(rel);
+    const dirAbs = request.storage.resolve(rel);
     const dirStat = await fsp.stat(dirAbs).catch(() => null);
     if (!dirStat?.isDirectory()) {
       throw app.httpErrors.notFound(
@@ -149,7 +150,7 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       if (!name || name === "." || name === "..") {
         throw app.httpErrors.badRequest("each uploaded file needs a valid filename");
       }
-      const targetAbs = app.storage.resolve(path.posix.join(rel, name));
+      const targetAbs = request.storage.resolve(path.posix.join(rel, name));
       const tmpAbs = path.join(
         path.dirname(targetAbs),
         `${UPLOAD_TEMP_PREFIX}${randomUUID()}.part`,
@@ -203,7 +204,7 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       throw app.httpErrors.badRequest("refusing to delete the storage root");
     }
     const recursive = flag((request.query as FilesQuery).recursive);
-    const abs = app.storage.resolve(rel);
+    const abs = request.storage.resolve(rel);
 
     let stats: fs.Stats;
     try {

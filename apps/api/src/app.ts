@@ -1,12 +1,16 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
+import { ensureAdminUser } from "./auth/bootstrap.js";
+import { makeAuthHook } from "./auth/hook.js";
 import type { AppConfig } from "./config.js";
 import { openDb, type DatabaseSync } from "./db/index.js";
 import { deleteExpiredSessions } from "./db/sessions.js";
 import { registerErrorHandler } from "./http.js";
 import { createConsoleMailer, type Mailer } from "./mail/index.js";
+import { authRoutes } from "./routes/auth.js";
 import { dirRoutes } from "./routes/dirs.js";
 import { fileRoutes } from "./routes/files.js";
 import { healthRoutes } from "./routes/health.js";
@@ -48,6 +52,10 @@ export async function buildApp(
   app.decorate("config", config);
   app.decorate("storage", createStorage(config.storageRoot));
   app.decorate("now", deps.now ?? Date.now);
+  app.decorateRequest("user", null);
+  // Always assigned by the guarded scope's hook before any handler runs; the
+  // `null` default is a placeholder the open routes never read.
+  app.decorateRequest("storage", null as unknown as Storage);
 
   const db = openDb(config.dbPath);
   app.decorate("db", db);
@@ -57,8 +65,11 @@ export async function buildApp(
   });
   deleteExpiredSessions(db, app.now());
 
+  await app.register(cookie);
   await app.register(cors, {
     origin: config.corsOrigins,
+    // Session cookie rides on cross-origin fetch() from the web app.
+    credentials: true,
     // Let browser fetch() read these off download responses (cross-origin
     // reads are opaque otherwise).
     exposedHeaders: [
@@ -78,10 +89,19 @@ export async function buildApp(
   });
 
   registerErrorHandler(app);
+  await ensureAdminUser(app);
 
+  // Open routes.
   await app.register(healthRoutes);
-  await app.register(fileRoutes, { prefix: "/api/files" });
-  await app.register(dirRoutes, { prefix: "/api/dirs" });
+  await app.register(authRoutes, { prefix: "/api/auth" });
+
+  // Guarded scope: everything here requires a valid session. Fastify
+  // encapsulation keeps the hook local to this register() call.
+  await app.register(async (secure) => {
+    secure.addHook("onRequest", makeAuthHook(secure, { scopeStorage: true }));
+    await secure.register(fileRoutes, { prefix: "/api/files" });
+    await secure.register(dirRoutes, { prefix: "/api/dirs" });
+  });
 
   return app;
 }
