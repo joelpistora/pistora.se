@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import RequestAccountLink from "@/components/RequestAccountLink";
 import { login } from "@/lib/api";
 import { authErrorMessage } from "@/lib/authErrors";
 
@@ -74,9 +75,7 @@ export default function LoginForm() {
           />
         </label>
 
-        <p className="text-sm text-foreground/60">
-          Contact administrator for an account
-        </p>
+        <RequestAccountLink />
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

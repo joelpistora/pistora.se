@@ -33,6 +33,7 @@ export {
   login,
   logout,
   getMe,
+  requestAccount,
   changePassword,
   listUsers,
   createUser,

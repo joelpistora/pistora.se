@@ -8,7 +8,7 @@ import type {
   Role,
   UserStatus,
 } from "shared";
-import { generateOtp, generateUserId, hashPassword } from "../auth/crypto.js";
+import { INVITE_TTL_MS, generateOtp, generateUserId, hashPassword } from "../auth/crypto.js";
 import { deleteSessionsForUser } from "../db/sessions.js";
 import { dirSize } from "../fs-usage.js";
 import {
@@ -28,9 +28,6 @@ import { ensureUserDir } from "../storage.js";
 
 /** Hard cap on a per-user quota an admin can set — a sanity limit, not a disk check. */
 const MAX_QUOTA_BYTES = 5 * 1024 * 1024 * 1024 * 1024; // 5 TiB
-
-/** How long an invited / reset one-time password stays usable. */
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function toAdminUser(row: UserRow, usedBytes: number): AdminUser {
   return {

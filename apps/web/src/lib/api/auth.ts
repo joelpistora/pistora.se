@@ -30,6 +30,15 @@ export function getMe(): Promise<SessionResponse> {
   return request<SessionResponse>("/api/auth/me");
 }
 
+/** Self-service account request from the login page — emails the admin, not the caller. */
+export function requestAccount(email: string): Promise<void> {
+  return request<void>("/api/auth/request-account", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+}
+
 export function changePassword(
   currentPassword: string,
   newPassword: string,

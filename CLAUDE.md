@@ -64,7 +64,8 @@ forward to the workspaces.
     `FileProperties` (stat modal), `NewFolderButton` + `UploadButton` (inline,
     into the current folder), `ApiStatus`, `HomeButton` (fixed top-left house
     icon → `/`, hidden on `/`). Auth UI: `AuthProvider`, `RequireAuth`,
-    `UserMenu`, `StorageBar`, `AdminUsers`, `LoginForm`, `ChangePasswordForm`.
+    `UserMenu`, `StorageBar`, `AdminUsers`, `LoginForm` (+ `RequestAccountLink`,
+    the self-service "request an account" inline form), `ChangePasswordForm`.
   - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
   - `src/lib/format.ts` — `formatSize` / `formatDate`.
   - `src/app/layout.tsx` — minimal root layout: Bricolage Grotesque (headings) +
@@ -132,6 +133,11 @@ forward to the workspaces.
     not supported yet (`Accept-Ranges: none`). (Everything but `/health` +
     `/api/auth/*` is now behind the session-cookie auth hook; `request.storage`
     is scoped to `users/<email>/` per caller — admins get the whole root.)
+    `POST /api/auth/request-account` `{ email }` — public self-service
+    signup trigger from the login page: creates the account immediately
+    (same OTP mechanism as the admin's `POST /api/admin/users`), but emails
+    the OTP to the admin, not the caller, and always replies `204` (never
+    echoes the OTP). Throttled by IP.
 - **`packages/shared`** — created in Phase 2. Holds the storage DTOs (`FileEntry`,
   `DirListing`, `FileMetadata`, `ErrorEnvelope`, `ErrorCode`) imported by both
   apps. `"type": "module"`, `private`, **no build step** — `package.json#exports`
@@ -212,7 +218,7 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       suite landed against a placeholder `STORAGE_ROOT` (PR #1, merged
       2026-09-09). Standalone follow-up, not blocking: mount the real 5TB drive
       when it arrives. Auth is deliberately Phase 4.
-- [ ] **Phase 1a – Mount real 5TB drive:** update the storage api to target the  real 5TB storage drive
+- [x] **Phase 1a – Mount real 5TB drive:** update the storage api to target the  real 5TB storage drive
 - [~] **Phase 2 – Frontend integration (foundation done, merging to `main`):**
       `packages/shared`, the typed API client, and a minimal client-side file
       browser (`/files`: browse, breadcrumbs, single-file upload, download) are

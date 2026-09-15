@@ -105,3 +105,6 @@ export function generateOtp(length = 10): string {
 export function generateUserId(): string {
   return randomUUID();
 }
+
+/** How long an invited / reset / self-requested one-time password stays usable. */
+export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;

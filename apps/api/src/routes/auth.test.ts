@@ -102,6 +102,86 @@ test("login: repeated failures trip the throttle (429 with Retry-After)", async 
   assert.ok(Number(res.headers["retry-after"]) > 0);
 });
 
+test("request-account: creates the user immediately and emails the admin, not the caller", async (t) => {
+  const { app, mailer } = await makeApp(t);
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/auth/request-account",
+    payload: { email: "  New@x.test " },
+  });
+  assert.equal(res.statusCode, 204);
+  assert.equal(res.payload, ""); // no body at all — nothing here could leak the otp
+
+  const created = await app.inject({
+    method: "POST",
+    url: "/api/auth/login",
+    payload: { email: "new@x.test", password: "wrong" },
+  });
+  assert.equal(created.statusCode, 401); // proves the row exists (vs. "unknown user" also 401, checked below)
+
+  assert.equal(mailer.sentAccountRequests.length, 1);
+  const msg = mailer.sentAccountRequests[0]!;
+  assert.equal(msg.to, "admin@pistora.test");
+  assert.equal(msg.requesterEmail, "new@x.test");
+  assert.ok(msg.otp.length > 0);
+
+  const loggedIn = await app.inject({
+    method: "POST",
+    url: "/api/auth/login",
+    payload: { email: "new@x.test", password: msg.otp },
+  });
+  assert.equal(loggedIn.statusCode, 200);
+  assert.equal(loggedIn.json().user.mustChangePassword, true);
+});
+
+test("request-account: an existing email is a 409 conflict, no duplicate user or email", async (t) => {
+  const { app, mailer } = await makeApp(t);
+  seedUser(app, { email: "taken@x.test" });
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/auth/request-account",
+    payload: { email: "taken@x.test" },
+  });
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.json().error.code, "conflict");
+  assert.equal(mailer.sentAccountRequests.length, 0);
+});
+
+test("request-account: a malformed email is a 400", async (t) => {
+  const { app } = await makeApp(t);
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/auth/request-account",
+    payload: { email: "not-an-email" },
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("request-account: repeated requests from the same caller trip the throttle", async (t) => {
+  const { app, mailer } = await makeApp(t);
+  for (let i = 0; i < 5; i++) {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/request-account",
+      payload: { email: `user${i}@x.test` },
+    });
+    assert.equal(res.statusCode, 204);
+  }
+  assert.equal(mailer.sentAccountRequests.length, 5);
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/auth/request-account",
+    payload: { email: "one-too-many@x.test" },
+  });
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.json().error.code, "too_many_requests");
+  assert.ok(Number(res.headers["retry-after"]) > 0);
+  assert.equal(mailer.sentAccountRequests.length, 5); // the throttled call never reached the mailer
+});
+
 test("me: 401 without a cookie, the user with one", async (t) => {
   const { app } = await makeApp(t);
   const u = seedUser(app, { email: "u@x.test", password: "s3cret-passw0rd" });

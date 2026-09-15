@@ -379,3 +379,36 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   work is Phase 5-shaped: sharing between accounts, rate limiting,
   Range-request support, the still-optional Phase 2 UI polish (drag-drop,
   upload progress, multi-select, mobile layout).
+
+## Self-service account requests (2026-09-15)
+
+The login page's "contact administrator" dead-end became a real action:
+`POST /api/auth/request-account` (public, unauthenticated, alongside
+`/login`). **Deliberately reuses the admin's exact `POST /api/admin/users`
+create-user sequence** — same `generateOtp`/`hashPassword`, same
+`ensureUserDir` + `createUser` with `mustChangePassword: true` and the same
+7-day `INVITE_TTL_MS` (now exported from `auth/crypto.ts` so both routes
+share it) — just triggered by the requester instead of an admin, and with
+`role` hard-coded to `"user"`.
+
+The account is created **immediately**, not queued for approval — no new
+"pending request" table. The differences from the admin flow are entirely in
+who's told what:
+- The invite email (`Mailer.sendAccountRequest`, a second message type
+  alongside `sendInvite`) goes to `config.adminEmail`, carrying the
+  requester's email and the OTP, so the admin can relay it by hand.
+- The requester never sees the OTP — the endpoint always returns a bare
+  `204`. Admin's `POST /users` can optionally echo the OTP back
+  (`exposeInviteOtp`, since that call is already authenticated as an admin);
+  this one never does, because leaking it to an anonymous caller would let
+  anyone skip the admin step entirely.
+- Throttled by `req.ip` (a separate `createLoginThrottle` instance, 5/hour)
+  rather than by email — every call costs a DB write and an admin email
+  regardless of outcome, so it's capped per caller, not per address.
+
+Frontend: `RequestAccountLink` (`apps/web/src/components/`) is a small
+three-state inline component on the login page (idle link → its own email
+field, deliberately separate from the sign-in form's → confirmation
+message), replacing the static "Contact administrator" text in `LoginForm`.
+The admin's own "add user" flow in `/admin` is unchanged — this is a second
+trigger for the same underlying creation logic, not a replacement.

@@ -68,6 +68,11 @@ export interface LoginRequest {
   password: string;
 }
 
+/** Body of `POST /api/auth/request-account` — self-service account request from the login page. */
+export interface RequestAccountRequest {
+  email: string;
+}
+
 export interface ChangePasswordRequest {
   currentPassword: string;
   newPassword: string;

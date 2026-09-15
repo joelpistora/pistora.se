@@ -1,15 +1,24 @@
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
-import type { ChangePasswordRequest, LoginRequest, SessionResponse } from "shared";
+import type {
+  ChangePasswordRequest,
+  LoginRequest,
+  RequestAccountRequest,
+  SessionResponse,
+} from "shared";
 import { AuthError, makeAuthHook, toAuthUser } from "../auth/hook.js";
 import { createLoginThrottle } from "../auth/throttle.js";
 import {
+  INVITE_TTL_MS,
+  generateOtp,
   generateSessionToken,
+  generateUserId,
   hashPassword,
   hashToken,
   verifyPassword,
 } from "../auth/crypto.js";
 import { createSession, deleteSession } from "../db/sessions.js";
 import {
+  createUser,
   getUserByEmail,
   getUserById,
   setPassword,
@@ -27,6 +36,15 @@ const loginBodySchema = {
   properties: {
     email: { type: "string", minLength: 1, maxLength: 320 },
     password: { type: "string", minLength: 1, maxLength: MAX_PASSWORD_LEN },
+  },
+} as const;
+
+const requestAccountBodySchema = {
+  type: "object",
+  required: ["email"],
+  additionalProperties: false,
+  properties: {
+    email: { type: "string", minLength: 1, maxLength: 320 },
   },
 } as const;
 
@@ -71,6 +89,9 @@ const sessionResponseSchema = {
  */
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const throttle = createLoginThrottle();
+  // Separate from the login throttle: keyed by IP rather than email, since every
+  // call here — successful or not — writes a user row and sends an admin email.
+  const requestAccountThrottle = createLoginThrottle({ max: 5, windowMs: 60 * 60_000 });
   const ttlMs = app.config.sessionTtlHours * 60 * 60 * 1000;
 
   function setSessionCookie(reply: FastifyReply, token: string): void {
@@ -163,6 +184,64 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         path: "/",
         domain: app.config.cookieDomain,
       });
+      reply.code(204);
+      return null;
+    },
+  );
+
+  // ---- POST /api/auth/request-account -------------------------------------
+
+  app.post<{ Body: RequestAccountRequest }>(
+    "/request-account",
+    {
+      schema: {
+        body: requestAccountBodySchema,
+        response: { 204: { type: "null" }, "4xx": { $ref: "error#" }, "5xx": { $ref: "error#" } },
+      },
+    },
+    async (req, reply) => {
+      const email = req.body.email.trim().toLowerCase();
+      if (!email.includes("@") || email.startsWith("@") || email.endsWith("@")) {
+        throw app.httpErrors.badRequest("a valid email address is required");
+      }
+
+      const now = app.now();
+      const wait = requestAccountThrottle.retryAfter(req.ip, now);
+      if (wait > 0) {
+        reply.header("Retry-After", String(wait));
+        throw new AuthError(
+          429,
+          "too_many_requests",
+          `too many requests — try again in ${wait}s`,
+        );
+      }
+      requestAccountThrottle.recordFailure(req.ip, now);
+
+      if (getUserByEmail(app.db, email)) {
+        throw app.httpErrors.conflict("an account with that email already exists");
+      }
+
+      const id = generateUserId();
+      const otp = generateOtp();
+      ensureUserDir(app.storage, email);
+      createUser(app.db, {
+        id,
+        email,
+        role: "user",
+        passwordHash: hashPassword(otp),
+        mustChangePassword: true,
+        passwordExpiresAt: now + INVITE_TTL_MS,
+        quotaBytes: app.config.defaultQuotaBytes,
+        now,
+      });
+
+      // The OTP goes to the admin, never back to this (unauthenticated) caller.
+      await app.mailer.sendAccountRequest({
+        to: app.config.adminEmail,
+        requesterEmail: email,
+        otp,
+      });
+
       reply.code(204);
       return null;
     },
