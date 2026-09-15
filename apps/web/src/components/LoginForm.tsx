@@ -75,8 +75,6 @@ export default function LoginForm() {
           />
         </label>
 
-        <RequestAccountLink />
-
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button
@@ -87,6 +85,9 @@ export default function LoginForm() {
           {busy ? "Signing in…" : "Confirm"}
         </button>
       </form>
+
+      {/* Its own <form>, so it must be a sibling of the sign-in form, not nested inside it. */}
+      <RequestAccountLink />
     </div>
   );
 }

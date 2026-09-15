@@ -410,5 +410,19 @@ Frontend: `RequestAccountLink` (`apps/web/src/components/`) is a small
 three-state inline component on the login page (idle link → its own email
 field, deliberately separate from the sign-in form's → confirmation
 message), replacing the static "Contact administrator" text in `LoginForm`.
-The admin's own "add user" flow in `/admin` is unchanged — this is a second
-trigger for the same underlying creation logic, not a replacement.
+It renders its own `<form>`, so it's a sibling of the sign-in `<form>` in
+`LoginForm`, never nested inside it — HTML forbids nested forms (React
+raised a hydration error the first time it was nested). The admin's own "add
+user" flow in `/admin` is unchanged — this is a second trigger for the same
+underlying creation logic, not a replacement.
+
+**Follow-up the same day: real email via Resend.** `Mailer` had only ever
+been `ConsoleMailer` (logs the message, sends nothing) — fine for exercising
+the admin-invite flow by hand, but this self-service endpoint's entire point
+is notifying the admin unattended. Added `createResendMailer`
+(`apps/api/src/mail/resend.ts`) — a plain `fetch` to Resend's HTTP API, no
+SDK dependency, kept consistent with the project's minimal-dependency
+pattern elsewhere (`node:sqlite`, `node:crypto`). Selected in `server.ts`
+(not `buildApp`, which stays pure/env-free) via `MAILER=resend` +
+`RESEND_API_KEY` + `MAIL_FROM`; unset, the app keeps `ConsoleMailer`. Fails
+fast at startup if `MAILER=resend` is set without both other vars.
