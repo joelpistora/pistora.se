@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { ensureAdminUser } from "../auth/bootstrap.js";
+import type { Mailer } from "../mail/index.js";
 import {
   loginCookie,
   makeAdminApp,
@@ -11,6 +12,17 @@ import {
   multipartBody,
   seedUser,
 } from "../test-helpers.js";
+
+function throwingMailer(): Mailer {
+  return {
+    async sendInvite() {
+      throw new Error("simulated send failure");
+    },
+    async sendAccountRequest() {
+      throw new Error("simulated send failure");
+    },
+  };
+}
 
 test("bootstrap: a fresh database gets an admin + an invite (no personal folder)", async (t) => {
   const { app, root, mailer } = await makeApp(t);
@@ -115,6 +127,58 @@ test("admin invite: exposeInviteOtp echoes the OTP in the response body", async 
   });
   assert.equal(res.statusCode, 201);
   assert.match(res.json().otp, /^[2-9A-HJKMNP-TV-Z]{10}$/);
+});
+
+test("admin invite: a failed send still returns the OTP so the admin isn't locked out", async (t) => {
+  const { app } = await makeApp(t, {}, { mailer: throwingMailer() });
+  app.db.prepare("DELETE FROM users").run();
+  const admin = seedUser(app, { email: "admin@pistora.test", role: "admin" });
+  const cookie = await loginCookie(app, admin.email, admin.password);
+
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/admin/users",
+    headers: { cookie },
+    payload: { email: "new@example.com" },
+  });
+  assert.equal(res.statusCode, 201);
+  const { otp } = res.json();
+  assert.match(otp, /^[2-9A-HJKMNP-TV-Z]{10}$/);
+
+  // the account works with that recovered OTP despite the failed email
+  const cookie2 = await loginCookie(app, "new@example.com", otp);
+  assert.ok(cookie2);
+});
+
+test("reset-otp: a failed send still returns the OTP", async (t) => {
+  const { app, cookie: adminCookie, adminId } = await makeAdminApp(t);
+  const created = await app.inject({
+    method: "POST",
+    url: "/api/admin/users",
+    headers: { cookie: adminCookie },
+    payload: { email: "reset-me@example.com" },
+  });
+  const targetId = created.json().user.id;
+
+  // swap in a throwing mailer for the reset call only
+  app.mailer.sendInvite = throwingMailer().sendInvite;
+
+  const res = await app.inject({
+    method: "POST",
+    url: `/api/admin/users/${targetId}/reset-otp`,
+    headers: { cookie: adminCookie },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.json().otp, /^[2-9A-HJKMNP-TV-Z]{10}$/);
+  assert.ok(adminId); // sanity: makeAdminApp's admin is distinct from the target
+});
+
+test("bootstrap: a failed invite send still creates the admin and logs the OTP, doesn't crash startup", async (t) => {
+  const { app } = await makeApp(t, {}, { mailer: throwingMailer() });
+  const row = app.db
+    .prepare("SELECT id FROM users WHERE email = ?")
+    .get("admin@pistora.test");
+  assert.ok(row, "bootstrap admin was still created despite the failed send");
 });
 
 test("admin invite: duplicate email is a 409, bad email a 400", async (t) => {

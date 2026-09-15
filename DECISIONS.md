@@ -426,3 +426,27 @@ pattern elsewhere (`node:sqlite`, `node:crypto`). Selected in `server.ts`
 (not `buildApp`, which stays pure/env-free) via `MAILER=resend` +
 `RESEND_API_KEY` + `MAIL_FROM`; unset, the app keeps `ConsoleMailer`. Fails
 fast at startup if `MAILER=resend` is set without both other vars.
+
+Chose Resend's zero-setup sandbox address (`onboarding@resend.dev`) as
+`MAIL_FROM` over verifying `pistora.se` as a sending domain — deliberate:
+control over who actually gets an account already lives entirely in "who
+receives the OTP," not in whether the mail send technically succeeds, so
+there's no security reason to widen delivery. The real consequence is
+functional, not a security gap: Resend's sandbox domain only delivers to
+the email the Resend account itself is registered under, so admin-created
+invites via `POST /api/admin/users` (which mail the **invitee's** address,
+not the admin's) will reliably fail to send.
+
+That failure mode used to be fatal to the request — `sendInvite` was
+awaited before the response was built, so a rejected send 500'd the whole
+call even though the account row (and folder) already existed, leaving an
+OTP nobody could retrieve if `EXPOSE_INVITE_OTP` was off. Fixed in
+`POST /api/admin/users`, `POST /api/admin/users/:id/reset-otp`
+(`apps/api/src/routes/admin.ts`), and `ensureAdminUser`
+(`apps/api/src/auth/bootstrap.ts`, the first-boot admin creation, which had
+the identical unguarded `await` and could otherwise have crashed server
+startup entirely on a bad send): a failed send is now caught, logged at
+`warn`, and the OTP is returned/logged directly regardless of
+`exposeInviteOtp` — so the admin can always relay it by hand, which is the
+actual delivery mechanism for admin-invited users under this `MAIL_FROM`
+choice anyway (mirrors how account-request notifications already work).

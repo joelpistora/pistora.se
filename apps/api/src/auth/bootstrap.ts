@@ -28,7 +28,13 @@ export async function ensureAdminUser(app: FastifyInstance): Promise<void> {
     now,
   });
 
-  await app.mailer.sendInvite({ to: app.config.adminEmail, otp });
+  // A failed send must never crash startup, and must never cost the only
+  // record of this OTP — the warn log below is the guaranteed fallback.
+  try {
+    await app.mailer.sendInvite({ to: app.config.adminEmail, otp });
+  } catch (err) {
+    app.log.warn({ err }, "bootstrap admin invite email failed to send");
+  }
   app.log.warn(
     { email: app.config.adminEmail, otp },
     "bootstrap admin created — sign in with this one-time password, then set a real one",

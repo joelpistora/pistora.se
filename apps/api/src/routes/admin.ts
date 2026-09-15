@@ -184,11 +184,19 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         now,
       });
 
-      await app.mailer.sendInvite({ to: email, otp });
+      // A failed send must never strand the admin without the OTP for an
+      // account that already exists — fall back to returning it directly.
+      let emailSent = true;
+      try {
+        await app.mailer.sendInvite({ to: email, otp });
+      } catch (err) {
+        emailSent = false;
+        app.log.warn({ err, email }, "invite email failed to send");
+      }
 
       reply.code(201);
       const user = toAdminUser(getUserById(app.db, id)!, 0); // folder just created, empty
-      return app.config.exposeInviteOtp ? { user, otp } : { user };
+      return app.config.exposeInviteOtp || !emailSent ? { user, otp } : { user };
     },
   );
 
@@ -285,11 +293,18 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       const now = app.now();
       issueOtp(app.db, target.id, hashPassword(otp), now + INVITE_TTL_MS, now);
       deleteSessionsForUser(app.db, target.id);
-      await app.mailer.sendInvite({ to: target.email, otp });
+
+      let emailSent = true;
+      try {
+        await app.mailer.sendInvite({ to: target.email, otp });
+      } catch (err) {
+        emailSent = false;
+        app.log.warn({ err, email: target.email }, "invite email failed to send");
+      }
 
       const updated = getUserById(app.db, target.id)!;
       const user = toAdminUser(updated, await usedBytesFor(updated));
-      return app.config.exposeInviteOtp ? { user, otp } : { user };
+      return app.config.exposeInviteOtp || !emailSent ? { user, otp } : { user };
     },
   );
 
