@@ -75,6 +75,30 @@
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+  .tooltip {
+    position: relative;
+  }
+  .tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .tooltip:hover::after,
+  .tooltip:focus-visible::after {
+    opacity: 1;
+  }
   @media (min-width: 700px) {
     body {
       background-image: url("https://assets.joel.pistora.se/island-landscape.jpg");
@@ -130,6 +154,18 @@
             <path d="M5 6h14"/>
             <path d="M7.5 6v12"/>
             <path d="M16.5 6v12"/>
+          </svg>
+        </a>
+      </li>
+      <li>
+        <a href="https://skanepowerhouse.com" aria-label="Skåne Powerhouse — coming soon"
+          class="tooltip" data-tooltip="coming soon…">
+          <svg viewBox="0 0 8.5 7" aria-hidden="true">
+            <rect width="8.5" height="7" fill="#C8102E" stroke="none"/>
+            <rect x="3" width="1" height="7" fill="#FFCD00" stroke="none"/>
+            <rect y="3" width="8.5" height="1" fill="#FFCD00" stroke="none"/>
+            <rect x="0.06" y="0.06" width="8.38" height="6.88" fill="none"
+              stroke="rgba(255,255,255,0.85)" stroke-width="0.12"/>
           </svg>
         </a>
       </li>
