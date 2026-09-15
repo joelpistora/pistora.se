@@ -58,7 +58,7 @@ export default function ChangePasswordForm() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-2xl">
           {forced ? "Set a new password" : "Change password"}
         </h1>
         {forced && (

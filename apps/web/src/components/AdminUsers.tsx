@@ -291,7 +291,7 @@ export default function AdminUsers() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold">Register user</h1>
+        <h1 className="text-2xl">Register user</h1>
         <p className="mt-1 text-sm text-foreground/60">
           Create an account by email. The person gets a one-time password and is
           forced to set their own on first sign-in.
@@ -334,7 +334,7 @@ export default function AdminUsers() {
       {notice && <OtpNotice email={notice.email} otp={notice.otp} />}
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Users</h2>
+        <h2 className="text-lg">Users</h2>
         {loadError && <p className="text-sm text-red-600">{loadError}</p>}
         {!users && !loadError && (
           <p className="text-sm text-foreground/60">Loading…</p>

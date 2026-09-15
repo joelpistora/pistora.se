@@ -63,7 +63,7 @@ export default function FileProperties({
         className="w-full max-w-sm rounded-lg border border-foreground/15 bg-surface p-5 shadow-xl"
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 className="font-sans text-base font-semibold break-all tracking-normal">{name}</h2>
+          <h2 className="font-sans text-base font-semibold normal-case break-all tracking-normal">{name}</h2>
           <button
             type="button"
             onClick={onClose}

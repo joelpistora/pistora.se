@@ -68,12 +68,24 @@ forward to the workspaces.
     the self-service "request an account" inline form), `ChangePasswordForm`.
   - `src/hooks/useDirectory.ts` — `listDir()` fetch hook (abortable, `reload()`).
   - `src/lib/format.ts` — `formatSize` / `formatDate`.
-  - `src/app/layout.tsx` — minimal root layout: Bricolage Grotesque (headings) +
-    Hanken Grotesk (body) + JetBrains Mono via `next/font`
-    (`--font-bricolage-grotesque` / `--font-hanken-grotesk` /
-    `--font-jetbrains-mono`) on `<html>`, `viewport.themeColor`, no chrome;
-    pages own their layout. A base-layer rule maps `h1/h2/h3` to
-    `--font-display`.
+  - `src/app/layout.tsx` — minimal root layout: Big Shoulders (headings,
+    uppercase, `weight: "variable"` + `axes: ["opsz"]` — Google's "Big
+    Shoulders Display" cut isn't a separate `next/font` export, the `opsz`
+    axis leans there on its own at heading sizes) + JetBrains Mono
+    (everything else — body, code, and the whole site's base text) via
+    `next/font` (`--font-big-shoulders-display` / `--font-jetbrains-mono`) on
+    `<html>`, `viewport.themeColor`, no chrome; pages own their layout. A
+    base-layer rule maps `h1/h2/h3` to `--font-display`, sets `font-weight:
+    400`, and sets `text-transform: uppercase` — **every heading's
+    `font-semibold` utility class was removed** (a utility class always
+    outranks this base rule regardless of what weight it sets, so leaving
+    `font-semibold` in place would have kept headings bold). Components with
+    real user content in a heading (e.g. `FileProperties`' filename `<h2>`)
+    explicitly opt back out of the uppercase with `normal-case`. Short
+    label-like elements (buttons, nav) get `uppercase tracking-wide`
+    individually at the component level; running body text (paragraphs,
+    filenames, form fields, error messages) stays normal-case for
+    readability.
     `src/app/favicon.ico` (App Router auto-serves it; stale — regenerate from
     `icon.svg`). `src/app/styles/globals.css` — Tailwind v4 only (`@import
     "tailwindcss"` + `@theme inline`), no legacy v3 directives. **Design tokens:**
@@ -284,7 +296,8 @@ per-user quotas) is live in production at `pistora.se` ↔ `api.pistora.se`.**
 - `apps/web`: `/` hub, `/files` file browser (browse / upload / download /
   rename-move / delete / new-folder / properties, kebab menu per row),
   `/login`, `/admin` (invite/edit users), `/account/password`. Fog & Steel
-  visual identity (Bricolage Grotesque + Hanken Grotesk + JetBrains Mono).
+  visual identity, brutalist type: Big Shoulders (uppercase headings) + JetBrains
+  Mono (body/code, uppercase on short label-like elements).
   `output: "export"` + `trailingSlash: true` → static `out/`.
 - **Deployed:** the static export is uploaded to pistora.se's `wwwroot/` over
   FTPS, driving the home API through the named tunnel at `api.pistora.se`.

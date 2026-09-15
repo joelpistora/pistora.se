@@ -45,7 +45,7 @@ export default function LoginForm() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Sign in</h1>
+        <h1 className="text-2xl">Sign in</h1>
         {/* <p className="mt-1 text-sm text-foreground/60">
           Pistora file storage. Accounts are created by an administrator.
         </p> */}

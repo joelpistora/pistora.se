@@ -290,16 +290,69 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   Tokens live in `globals.css` `:root` + a `prefers-color-scheme` dark block,
   mapped through `@theme inline` (`bg-surface`, `text-accent`, `bg-amber/10`, …).
   No theme toggle — follows the OS.
-- **Type: Bricolage Grotesque (display) · Hanken Grotesk (body) · JetBrains
-  Mono** (all variable, `next/font`, self-hosted). Bricolage — a contemporary
-  grotesque with deliberate irregularities — carries the wordmark and all
-  `h1`/`h2`/`h3` (a base-layer rule on `--font-display`); Hanken Grotesk does
-  body text (legible at 13px, which the file table needs); JetBrains Mono is the
-  only other voice (filenames, paths, OTPs). Chosen from a six-option specimen
-  over Geist (too neutral), plain Hanken throughout (no headline character),
-  IBM Plex (more corporate), a Newsreader serif display (more editorial), and an
-  all-mono treatment (too costly for reading). `FileProperties` overrides its
-  filename `h2` back to the body face.
+- **Type (2026-09-10): Bricolage Grotesque (display) · Hanken Grotesk (body) ·
+  JetBrains Mono** (all variable, `next/font`, self-hosted). Bricolage — a
+  contemporary grotesque with deliberate irregularities — carried the
+  wordmark and all `h1`/`h2`/`h3` (a base-layer rule on `--font-display`);
+  Hanken Grotesk did body text (legible at 13px, which the file table needs);
+  JetBrains Mono was the only other voice (filenames, paths, OTPs). Chosen
+  from a six-option specimen over Geist (too neutral), plain Hanken
+  throughout (no headline character), IBM Plex (more corporate), a
+  Newsreader serif display (more editorial), and an all-mono treatment (too
+  costly for reading). **Superseded the same day it was revisited — see
+  "Brutalist type system" below.**
+
+## Brutalist type system (2026-09-15)
+
+Replaced the Bricolage Grotesque + Hanken Grotesk pairing above: a display
+face (display, all-caps) + **JetBrains Mono** (everything else — now the
+whole site's body face, not just filenames/OTPs). Chosen from a six-candidate
+headline specimen (Archivo Black, Big Shoulders Display, Unbounded, Bebas
+Neue, Anton, an uppercase-JetBrains-Mono option) rendered at real hero size
+on the real Fog & Steel background.
+
+Went with **Anton** first, then swapped same-day to **Big Shoulders**
+(Google's variable family — `next/font`'s `Big_Shoulders` export with the
+`opsz` axis enabled, since "Big Shoulders Display" isn't a separate
+importable font; the optical-size axis leans toward that Display cut on its
+own at the large sizes headings use) — Anton's fixed heavy weight read as too
+bold once seen live; Big Shoulders' regular weight (`font-weight: 400` in the
+base rule, and **every heading's `font-semibold` utility removed** — Tailwind
+utilities in `@layer utilities` outrank a plain element selector in
+`@layer base` regardless of what weight that base rule sets, so the utility
+class had to go, not just the base rule) gives the same condensed brutalist
+silhouette without it.
+
+Three deliberate scoping decisions, each settled by asking rather than
+guessing, since a blanket "make it brutalist" reading would have broken
+readability:
+- **Headings uppercase, body not.** The `h1`/`h2`/`h3` base-layer rule adds
+  `text-transform: uppercase`; body copy — paragraphs, form fields, error
+  messages, filenames — stays normal-case. Uppercase+tracking on short
+  label-like elements (buttons, nav) is applied individually at the
+  component level, not globally, so it never reaches running text. Landing
+  page buttons also needed a second pass: uppercase + tracking-wide pushed
+  the longer labels (`capitalpidesign.se`) past their half-width `grid-
+  cols-2` cell, so those four buttons dropped to `text-xs` with tighter
+  `px-2` padding.
+- **Body font change is site-wide, not landing-page-only.** JetBrains Mono
+  now backs `--font-sans` (previously Hanken Grotesk), so every page inherits
+  it via the existing `font-sans` class on `<body>` — no per-component
+  changes needed beyond the ones below.
+- **User-supplied content in a heading opts out of uppercase.**
+  `FileProperties`' filename `<h2>` already overrode `--font-display` back to
+  the body face (so a literal filename doesn't render in the display font);
+  it now also adds `normal-case`, since `text-transform` doesn't change the
+  underlying string but *would* misrepresent a filename's actual casing on
+  screen. No other heading anywhere in the app carries user-supplied text —
+  checked by grepping every `<h1>/<h2>/<h3>` in `apps/web/src`.
+
+`Hanken_Grotesk` is dropped from `next/font` entirely (no longer used
+anywhere), leaving two font loads: `Big_Shoulders` (`weight: "variable"`,
+`axes: ["opsz"]`, `--font-big-shoulders-display`) and `JetBrains_Mono`
+(`--font-jetbrains-mono`, backing both `--font-sans` and `--font-mono` now —
+kept as two separate tokens for future flexibility even though they're
+currently identical).
 
 ## Cloudflare cutover prep (2026-09-15)
 

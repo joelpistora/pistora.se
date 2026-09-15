@@ -36,19 +36,29 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-amber: var(--amber);
   --color-amber-foreground: var(--amber-foreground);
-  --font-sans: var(--font-hanken-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
-  --font-display: var(--font-bricolage-grotesque), var(--font-hanken-grotesk),
-    ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-big-shoulders-display), ui-sans-serif, system-ui,
+    sans-serif;
 }
 
-/* The wordmark and headings carry the display face; everything else is body. */
+/*
+ * Brutalist pairing: Big Shoulders Display, all-caps and regular weight, on
+ * the wordmark and every heading (no heading carries font-semibold — the
+ * face's own condensed weight is the whole effect); JetBrains Mono
+ * everywhere else. Body copy (paragraphs, filenames, form fields, error
+ * text) stays normal-case for readability — uppercase+tracking is reserved
+ * for short label-like elements (buttons, nav) at the component level, not
+ * applied globally to running text.
+ */
 @layer base {
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.015em;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 }
 

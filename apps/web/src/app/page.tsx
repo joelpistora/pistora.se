@@ -4,8 +4,8 @@ import ApiStatus from "@/components/ApiStatus";
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center p-8 text-center">
-      <div className="flex flex-1 flex-col items-center justify-center gap-8">
-        <h1 className="text-5xl font-semibold">Pistora Web</h1>
+      <div className="flex flex-1 flex-col items-center justify-center gap-20">
+        <h1 className="text-5xl">Pistora Hub</h1>
 
         <ApiStatus />
 
@@ -13,7 +13,7 @@ export default function Home() {
           {/* Auth-gated: /files bounces to /login when signed out. */}
           <Link
             href="/files"
-            className="rounded bg-accent px-5 py-2.5 text-accent-foreground transition hover:opacity-90"
+            className="rounded bg-accent px-5 py-2.5 text-sm uppercase tracking-wide text-accent-foreground transition hover:opacity-90"
           >
             Hard Drive
           </Link>
@@ -23,7 +23,7 @@ export default function Home() {
               href="https://capitalpidesign.se/"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded border border-foreground/20 px-3 py-2.5 transition hover:bg-foreground/10"
+              className="rounded border border-foreground/20 px-2 py-2.5 text-xs uppercase tracking-wide transition hover:bg-foreground/10"
             >
               capitalpidesign.se
             </a>
@@ -32,7 +32,7 @@ export default function Home() {
               href="https://oltorget.nu/"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded border border-foreground/20 px-3 py-2.5 transition hover:bg-foreground/10"
+              className="rounded border border-foreground/20 px-2 py-2.5 text-xs uppercase tracking-wide transition hover:bg-foreground/10"
             >
               Öltorget
             </a>
@@ -43,7 +43,7 @@ export default function Home() {
               href="https://pistora.wordpress.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded border border-foreground/20 px-3 py-2.5 transition hover:bg-foreground/10"
+              className="rounded border border-foreground/20 px-2 py-2.5 text-xs uppercase tracking-wide transition hover:bg-foreground/10"
             >
               Blog
             </a>
@@ -53,7 +53,7 @@ export default function Home() {
               href="https://joel.pistora.se"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded border border-foreground/20 px-3 py-2.5 transition hover:bg-foreground/10"
+              className="rounded border border-foreground/20 px-2 py-2.5 text-xs uppercase tracking-wide transition hover:bg-foreground/10"
             >
               Joel
             </a>
