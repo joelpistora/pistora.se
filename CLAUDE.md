@@ -32,8 +32,9 @@ Run from the repo root (npm workspaces). `web` = frontend, `api` = backend.
 - `PORT` env var overrides the API port.
 - **The API needs `STORAGE_ROOT`** — an absolute path to an existing directory —
   set in `apps/api/.env` (copy `apps/api/env.example`). `npm run dev:api` exits
-  with a clear message if it's missing or invalid. One-time:
-  `mkdir -p ~/pistora-storage`.
+  with a clear message if it's missing or invalid. Real drive: `/mnt/d/pistora-storage`
+  (DrvFs, see below) — a dedicated subfolder, since `D:\` also holds unrelated
+  personal files.
 - **Tests:** `node:test` via `tsx`, no extra deps. Run one file:
   `node --import tsx --test apps/api/src/routes/files.test.ts`. Run one case:
   add `--test-name-pattern "<regex>"`. `buildApp(config)` in `apps/api/src/app.ts`
@@ -210,9 +211,13 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
 - [x] **Phase 1 – Backend + storage locally:** storage endpoints
       (`/api/files`, `/api/dirs`), the path-safety primitive, and a `node:test`
       suite landed against a placeholder `STORAGE_ROOT` (PR #1, merged
-      2026-09-09). Standalone follow-up, not blocking: mount the real 5TB drive
-      when it arrives. Auth is deliberately Phase 4.
-- [ ] **Phase 1a – Mount real 5TB drive:** update the storage api to target the  real 5TB storage drive
+      2026-09-09). Auth is deliberately Phase 4.
+- [x] **Phase 1a – Mount the real 5TB drive:** WD Elements arrived and
+      connected 2026-09-15. DrvFs mounted it at `/mnt/d` (see below);
+      `STORAGE_ROOT=/mnt/d/pistora-storage` — a dedicated subfolder holding only
+      `users/<email>/`, since `D:\` also holds the user's unrelated personal
+      files. Phase 1 placeholder data copied across; old placeholder
+      (`~/pistora-storage`) left in place, unused.
 - [~] **Phase 2 – Frontend integration (foundation done, merging to `main`):**
       `packages/shared`, the typed API client, and a minimal client-side file
       browser (`/files`: browse, breadcrumbs, single-file upload, download) are
@@ -299,9 +304,9 @@ In dev (no `CORS_ORIGINS` set) the API allows pistora.se + **any**
 `http(s)://localhost:<port>` / `127.0.0.1`, so it doesn't matter which port Next
 lands on. Setting `CORS_ORIGINS` (prod) switches to an exact allowlist, no
 localhost fallback.
-When the WD Elements 5TB arrives: plug into Windows, point `STORAGE_ROOT` at
-`/mnt/d/pistora` (see Open questions). Auth is Phase 4. Tunnel/DNS runs in
-parallel.
+**The WD Elements 5TB is now connected and mounted** (Phase 1a, 2026-09-15):
+DrvFs at `/mnt/d`, `STORAGE_ROOT=/mnt/d/pistora-storage` (see Open questions). Auth is
+Phase 4. Tunnel/DNS runs in parallel.
 
 **Known issues / follow-ups:**
 - File-browser UI has browse / upload / download / rename-move / delete /
@@ -356,16 +361,42 @@ parallel.
   where sharing metadata lives (first datastore — SQLite? a JSON file?).
 - The site is currently public with **no auth** (quick tunnel, shared only with
   trusted people by hand) — deliberate and temporary until Phase 4.
-- **Drive mount (decided 2026-09-09):** when the WD Elements 5TB arrives, plug
-  it into Windows and use it via DrvFs at `/mnt/d`, keeping the factory NTFS
-  format (`STORAGE_ROOT=/mnt/d/pistora`). Rationale: code is format-agnostic
-  (one-line `.env` change to switch), throughput is HDD-bound so 9p overhead is
-  negligible for bulk streaming, Windows keeps direct access as a
-  backup/recovery net, no per-boot mount step. A `wsl --mount --bare` + ext4
-  reformat stays as a later hardening option; `usbipd-win` ruled out for the
-  permanent disk. Note: on NTFS/DrvFs the symlink-escape branch of
-  `storage.resolve()` is a harmless no-op (no POSIX symlinks); it's exercised by
-  the ext4-based tests.
+- **Drive mount (decided 2026-09-09, done 2026-09-15):** WD Elements connected
+  to the Windows box; DrvFs at `/mnt/d`, factory NTFS kept, `STORAGE_ROOT`
+  changed from `/mnt/d/pistora` to **`/mnt/d/pistora-storage`** — see the naming note
+  below. Rationale (still holds): code is format-agnostic (one-line `.env`
+  change to switch), throughput is HDD-bound so 9p overhead is negligible for
+  bulk streaming, Windows keeps direct access as a backup/recovery net, no
+  per-boot mount step. A `wsl --mount --bare` + ext4 reformat stays as a later
+  hardening option; `usbipd-win` ruled out for the permanent disk. Note: on
+  NTFS/DrvFs the symlink-escape branch of `storage.resolve()` is a harmless
+  no-op (no POSIX symlinks); it's exercised by the ext4-based tests.
+  - **Surprise:** `D:\` was not empty — it already held the user's own files
+    (videos, downloads, a `WD Software` folder). `STORAGE_ROOT` **must** be a
+    dedicated subfolder, never the drive root, or the API would list/serve/allow
+    deleting unrelated personal files. `/mnt/d/pistora-storage` is that
+    subfolder, and it holds only `users/<email>/` — no shared, unscoped files at
+    its top level.
+  - **Naming:** went through `/mnt/d/pistora` (rejected — branded name) and
+    `/mnt/d/storage` (too generic) before settling on the final
+    `/mnt/d/pistora-storage` — matches the Phase 1 placeholder's name
+    (`~/pistora-storage`) for continuity, still reads as "the app's storage,"
+    without being a bare product-name folder.
+  - **The user's personal file backup** (a large personal archive — school
+    years, band recordings, docs) initially landed loose at the drive's top
+    level, then briefly inside `pistora-storage/` itself (flagged as a risk —
+    would have been exposed via the shared-root listing) before the user moved
+    it into **their own account's folder**, `users/joel@pistora.se/`. That's
+    the correct place: scoped to one account, invisible to any other user,
+    normal use of the product rather than a special case.
+  - **WSL2 gotcha:** a drive attached to Windows *after* the WSL2 VM was already
+    running does not auto-mount — `/mnt/d` had to be created + mounted manually
+    (`sudo mkdir -p /mnt/d && sudo mount -t drvfs D: /mnt/d`), which needs root
+    (Claude Code has no `sudo`, so this step needed the user). A `wsl --shutdown`
+    from PowerShell + relaunch makes WSL2's built-in automount pick it up on its
+    own from then on — do that if `/mnt/d` doesn't survive a reboot.
+  - The Phase 1 placeholder (`~/pistora-storage`) was left on disk, unused, not
+    deleted.
 - Whether to migrate pistora.se DNS to Cloudflare (free, needs domain-account
   holder) vs register a throwaway domain for `api.*` (~$10/yr, no dad). Leaning
   migration. Details in `infra/dns/`.
@@ -403,8 +434,10 @@ Full history in [DECISIONS.md](DECISIONS.md). The still-load-bearing ones:
   MSPControl panel; email via MailChannels). Only **DNS** is planned to move to
   Cloudflare, to unlock `api.pistora.se` + a named tunnel. `infra/dns/` has the
   inventory, migration plan, and Hostek request.
-- **Storage drive:** WD Elements 5TB, not yet on hand. When it arrives: DrvFs
-  `/mnt/d`, keep NTFS (see Open questions for the rationale and migration path).
+- **Storage drive:** WD Elements 5TB — connected and mounted 2026-09-15. DrvFs
+  at `/mnt/d`, NTFS kept, `STORAGE_ROOT=/mnt/d/pistora-storage` (dedicated subfolder —
+  `D:\` also has the user's own files). See Open questions for the full
+  rationale, the WSL2 automount gotcha, and the naming call.
 - **Auth = Cloudflare Access, after the DNS migration (2026-09-10):** Phase 4
   auth is sequenced behind Phase 3's Cloudflare migration. Access (free Zero
   Trust, email one-time-PIN, ≤50 users) is the front door — it removes password

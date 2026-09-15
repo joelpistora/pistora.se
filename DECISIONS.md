@@ -300,3 +300,46 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   IBM Plex (more corporate), a Newsreader serif display (more editorial), and an
   all-mono treatment (too costly for reading). `FileProperties` overrides its
   filename `h2` back to the body face.
+
+## Phase 1a — Real drive mounted (2026-09-15)
+
+- **WD Elements 5TB connected** to the Windows box. WSL2 did not auto-mount it:
+  a drive attached after the WSL2 VM was already running isn't picked up by
+  automount until WSL restarts. Fixed for this session with
+  `sudo mkdir -p /mnt/d && sudo mount -t drvfs D: /mnt/d` (needs root — the one
+  step in this whole drive-mount job Claude Code couldn't do itself). A
+  `wsl --shutdown` from PowerShell + relaunch makes the built-in automount
+  handle it on its own going forward.
+- **`D:\` was not empty.** It already held the user's personal files (videos,
+  downloads, a `WD Software` folder) — this was a drive already in personal
+  use, not a blank disk dedicated to the project. Confirms the existing
+  decision to point `STORAGE_ROOT` at a dedicated subfolder was load-bearing,
+  not just tidy: pointing it at the drive root would have listed, served, and
+  allowed deleting the user's unrelated files through the storage API.
+- **Naming: `/mnt/d/pistora-storage`.** Went through two intermediate names
+  before landing here: `/mnt/d/pistora` (rejected first — the user didn't want
+  the product's brand name as a bare directory) and `/mnt/d/storage` (too
+  generic, and the user reconsidered). Settled on `pistora-storage`, matching
+  the exact name of the Phase 1 placeholder (`~/pistora-storage`) for
+  continuity. Superseded every earlier reference to `/mnt/d/pistora` and
+  `/mnt/d/storage` (CLAUDE.md, decision log, `env.example`).
+- **The user's personal file backup moved through the drive live** while this
+  work was in progress (they were reorganizing `D:\` in Windows Explorer at the
+  same time). It briefly sat directly inside `pistora-storage/` — flagged as a
+  risk, since anything at that top level is exposed through the shared-root
+  listing — before the user moved it into **their own account folder**,
+  `users/joel@pistora.se/`. Final state: `pistora-storage/` contains only
+  `users/<email>/`, nothing unscoped at the top. This is the intended shape —
+  a user's personal files under their own account, not a special case — and
+  confirms per-user folders are doing their job.
+- **Data migration:** the Phase 1 placeholder (`~/pistora-storage`) held real
+  test data (per-user folders, uploaded files) — copied to
+  `/mnt/d/pistora-storage` with `cp -a` and verified byte-identical with
+  `diff -rq` at copy time (before the user's own reorganizing changed the tree
+  further, as above). The placeholder directory was left on disk, unused,
+  rather than deleted, as a rollback safety net.
+- **Verified:** `npm run build:api` clean, `npm run test:api` green (99 tests —
+  unaffected by the change, since tests always use a temp `STORAGE_ROOT`), API
+  boots against the final `/mnt/d/pistora-storage` and serves `/health`, and the
+  auth gate still 401s `/api/files` with no session. User accounts (SQLite,
+  `apps/api/data/`) were untouched throughout — only the file trees moved.
