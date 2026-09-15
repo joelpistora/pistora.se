@@ -246,22 +246,25 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       (reuses the existing SQLite datastore).
 - [ ] **Phase 5 – Extras:** sync with iCloud/Google Drive, rate limiting,
       Range-request support, polish.
-- [~] **Phase 6 – joel.pistora.se placeholder:** Joel's personal site, on its
-      own subdomain, separate from the storage product. v1 scope deliberately
-      minimal — a placeholder page (`site/joel/index.html`): photo, name,
-      mailto + LinkedIn/Instagram/Spotify links, no framework/build step,
-      hosted on **Cloudflare Workers (static assets)** (not Hostek, and not
-      Cloudflare Pages — Cloudflare moved Pages to maintenance mode during
-      2026, all new investment goes to Workers, so this was set up on Workers
-      from the start to avoid a future migration; `site/joel/wrangler.jsonc`
-      is the (minimal, no-npm-deps) config), with a visual identity of its
-      own distinct from "Fog & Steel". The full portfolio (About, Projects,
-      Work experience) is future work, not this phase. `site/joel/photo.jpg` is
-      committed for now (small circular avatar); a full-width redesign is
-      planned, at which point the photo should move out of git to separate
-      hosting (e.g. Cloudflare R2) — deferred, not yet decided. **Remaining:**
-      connect the Cloudflare Workers project and custom domain (dashboard
-      steps, not yet done).
+- [x] **Phase 6 v1 – joel.pistora.se placeholder: live.** Joel's personal
+      site, on its own subdomain, separate from the storage product. v1 scope
+      deliberately minimal — a placeholder page (`site/joel/index.html`):
+      photo, name, mailto + LinkedIn/Instagram/Spotify links, no
+      framework/build step, hosted on **Cloudflare Workers (static assets)**
+      (not Hostek, and not Cloudflare Pages — Cloudflare moved Pages to
+      maintenance mode during 2026, all new investment goes to Workers, so
+      this was set up on Workers from the start to avoid a future migration;
+      `site/joel/wrangler.jsonc` is the minimal, no-npm-deps config), with a
+      visual identity of its own distinct from "Fog & Steel". Confirmed live
+      2026-09-15: Worker connected to the repo (Git-connected, root
+      `site/joel`, auto-deploys on push), custom domain `joel.pistora.se`
+      resolving and serving over HTTPS, all four links verified.
+      **Remaining (not blocking, future work):** the full portfolio (About,
+      Projects, Work experience) — not started, no content/design decided.
+      `site/joel/photo.jpg` is committed for now (small circular avatar); a
+      full-width redesign is planned (design direction TBD from Joel), at
+      which point the photo should move out of git to separate hosting (e.g.
+      Cloudflare R2) — deferred, not yet decided.
 
 **Where we are right now:** **Phases 0–4 done (branch `phase-2-file-actions`,
 not yet merged to `main`) — the full stack (storage, file browser, auth,
