@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE, ping } from "@/lib/api";
+import { ping } from "@/lib/api";
 
 type State = "checking" | "ok" | "down";
 
+/** Silent unless the API can't be reached — never names the API itself. */
 export default function ApiStatus() {
   const [state, setState] = useState<State>("checking");
 
@@ -18,24 +19,12 @@ export default function ApiStatus() {
     return () => controller.abort();
   }, []);
 
-  const dot =
-    state === "ok"
-      ? "bg-green-500"
-      : state === "down"
-        ? "bg-red-500"
-        : "bg-foreground/30";
-
-  const label =
-    state === "ok"
-      ? `Connected to ${API_BASE}`
-      : state === "down"
-        ? `API unreachable at ${API_BASE}`
-        : "Checking API…";
+  if (state !== "down") return null;
 
   return (
-    <p className="flex items-center gap-2 text-sm text-foreground/70">
-      <span className={`inline-block h-2 w-2 rounded-full ${dot}`} aria-hidden />
-      {label}
+    <p className="flex items-center gap-2 text-sm text-red-600">
+      <span className="inline-block h-2 w-2 rounded-full bg-red-500" aria-hidden />
+      Cannot connect to API
     </p>
   );
 }
