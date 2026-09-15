@@ -479,3 +479,18 @@ dependency-free static HTML, no workspace, no build step) rather than a new
 some links, upgradable later once real portfolio content scope is decided.
 Lands as `site/joel/index.html`, deployed via Cloudflare Pages pointed at
 `site/joel` as the project root.
+
+**Correction the same day: Cloudflare Workers, not Pages.** Cloudflare moved
+Pages to maintenance mode during 2026 — it still works, but all new
+investment (features, dashboard polish) goes to **Workers with static
+assets** instead, and newer accounts' dashboards are already dropping the
+separate "Pages" creation option. Since nothing had been deployed yet,
+switched before committing to the deprecated path rather than migrating
+later. Practical difference: Workers needs one small config file committed
+alongside the page (`site/joel/wrangler.jsonc` — `assets.directory: "."`,
+no npm dependency, no build step, still zero-JS-framework) that Pages didn't
+require; deploy mechanism (Git-connected, auto-deploy on push, custom domain
+via the dashboard) is otherwise the same shape. Also better aligned with an
+earlier open question about this site eventually wanting "more logic" —
+Workers is the same product that logic would run on, so there's nothing to
+migrate if that need shows up later.

@@ -151,8 +151,8 @@ forward to the workspaces.
 - **`site/`** — hand-written static pages, not part of the npm build.
   `index.html` = "under construction", served from pistora.se's `wwwroot\`;
   `apitest.html` = the frontend↔backend connectivity probe. `site/joel/` =
-  the `joel.pistora.se` placeholder page (Phase 6), deployed separately via
-  Cloudflare Pages, not Hostek.
+  the `joel.pistora.se` placeholder page (Phase 6) + its `wrangler.jsonc`,
+  deployed separately via Cloudflare Workers (static assets), not Hostek.
 - **`infra/`** — ops notes & configs, not code. `infra/cloudflared/` (tunnel
   config example), `infra/dns/` (pistora.se DNS inventory + Cloudflare migration
   plan + Hostek support-request draft).
@@ -250,11 +250,18 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       own subdomain, separate from the storage product. v1 scope deliberately
       minimal — a placeholder page (`site/joel/index.html`): photo, name,
       mailto + LinkedIn/Instagram/Spotify links, no framework/build step,
-      hosted on **Cloudflare Pages** (not Hostek), with a visual identity of
-      its own distinct from "Fog & Steel". The full portfolio (About,
-      Projects, Work experience) is future work, not this phase. **Remaining:**
-      add the real photo (`site/joel/photo.jpg`), connect the Cloudflare
-      Pages project and custom domain (dashboard steps, not yet done).
+      hosted on **Cloudflare Workers (static assets)** (not Hostek, and not
+      Cloudflare Pages — Cloudflare moved Pages to maintenance mode during
+      2026, all new investment goes to Workers, so this was set up on Workers
+      from the start to avoid a future migration; `site/joel/wrangler.jsonc`
+      is the (minimal, no-npm-deps) config), with a visual identity of its
+      own distinct from "Fog & Steel". The full portfolio (About, Projects,
+      Work experience) is future work, not this phase. `site/joel/photo.jpg` is
+      committed for now (small circular avatar); a full-width redesign is
+      planned, at which point the photo should move out of git to separate
+      hosting (e.g. Cloudflare R2) — deferred, not yet decided. **Remaining:**
+      connect the Cloudflare Workers project and custom domain (dashboard
+      steps, not yet done).
 
 **Where we are right now:** **Phases 0–4 done (branch `phase-2-file-actions`,
 not yet merged to `main`) — the full stack (storage, file browser, auth,

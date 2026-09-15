@@ -53,3 +53,6 @@ next-env.d.ts
 # never in the repo. This guards against a stray copy.
 .cloudflared/
 *.cloudflared.json
+
+# wrangler local state/cache (Cloudflare Workers)
+.wrangler/
