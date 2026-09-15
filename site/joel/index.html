@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Joel Pistora</title>
+<meta name="description" content="Joel Pistora.">
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: #fbf7f4;
+    color: #241f1c;
+    font: 400 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
+  }
+  main { text-align: center; max-width: 24rem; }
+  .photo {
+    width: 9rem;
+    height: 9rem;
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+    background: #e8ddd3;
+    overflow: hidden;
+  }
+  .photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .links {
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    justify-content: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .links a {
+    color: #b5502f;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .links a:hover,
+  .links a:focus-visible {
+    text-decoration: underline;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1815; color: #f2ece6; }
+    .photo { background: #33291f; }
+    .links a { color: #e08e6a; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <div class="photo">
+      <img src="photo.jpg" alt="Joel Pistora" loading="lazy">
+    </div>
+    <h1>Joel Pistora</h1>
+    <ul class="links">
+      <li><a href="mailto:joel@pistora.se">Email</a></li>
+      <li><a href="https://www.linkedin.com/in/joel-pistora/">LinkedIn</a></li>
+      <li><a href="https://www.instagram.com/joelpistora/">Instagram</a></li>
+      <li><a href="https://open.spotify.com/artist/4TyALEGyYDpWdE5Mzfgiy3">Spotify</a></li>
+    </ul>
+  </main>
+</body>
+</html>

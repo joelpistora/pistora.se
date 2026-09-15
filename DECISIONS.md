@@ -450,3 +450,32 @@ startup entirely on a bad send): a failed send is now caught, logged at
 `exposeInviteOtp` — so the admin can always relay it by hand, which is the
 actual delivery mechanism for admin-invited users under this `MAIL_FROM`
 choice anyway (mirrors how account-request notifications already work).
+
+## Phase 6 kickoff: joel.pistora.se placeholder (2026-09-15)
+
+A prior planning session had scoped a full personal-portfolio Phase 6 and
+paused on four open questions (hosting, visual identity, content scope,
+contact mechanism), saved as a resumption checkpoint. Resumed and decided:
+
+- **Hosting: Cloudflare Pages**, not Hostek. `pistora.se` DNS is already
+  Cloudflare-authoritative; a Pages project's custom-domain feature
+  auto-creates the DNS record, the same one-click pattern the
+  `api.pistora.se` tunnel used. Avoids the open question of whether Hostek's
+  existing IIS plan supports a second site/binding for a subdomain.
+- **Visual identity: a fresh personal brand**, not "Fog & Steel" — the
+  storage product's palette/type system stays scoped to `pistora.se`, not
+  extended into a cross-subdomain family look.
+- **v1 content scope: deliberately minimal.** Not the About/Projects/Work/
+  Contact set originally discussed — just a placeholder: a photo, a name,
+  and contact links. The full portfolio is future work; shipping a minimal
+  page now beats leaving the subdomain unused indefinitely.
+- **Contact mechanism: plain links, no backend** — mailto (`joel@pistora.se`)
+  + LinkedIn + Instagram + Spotify, all confirmed real destinations, not
+  placeholders.
+
+Implementation follows the existing `site/index.html` pattern (hand-written,
+dependency-free static HTML, no workspace, no build step) rather than a new
+`apps/portfolio` Next.js workspace — proportionate to a v1 that's a photo and
+some links, upgradable later once real portfolio content scope is decided.
+Lands as `site/joel/index.html`, deployed via Cloudflare Pages pointed at
+`site/joel` as the project root.

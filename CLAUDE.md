@@ -148,9 +148,11 @@ forward to the workspaces.
   at runtime — enforced by `verbatimModuleSyntax` in `apps/api/tsconfig.json`.
   **Policy: types-only, no runtime code** (see the header comment in
   `src/index.ts`); adding a runtime value needs a real `tsc` build first.
-- **`site/`** — hand-written static pages served from pistora.se's `wwwroot\`
-  right now (not part of the npm build). `index.html` = "under construction";
-  `apitest.html` = the frontend↔backend connectivity probe.
+- **`site/`** — hand-written static pages, not part of the npm build.
+  `index.html` = "under construction", served from pistora.se's `wwwroot\`;
+  `apitest.html` = the frontend↔backend connectivity probe. `site/joel/` =
+  the `joel.pistora.se` placeholder page (Phase 6), deployed separately via
+  Cloudflare Pages, not Hostek.
 - **`infra/`** — ops notes & configs, not code. `infra/cloudflared/` (tunnel
   config example), `infra/dns/` (pistora.se DNS inventory + Cloudflare migration
   plan + Hostek support-request draft).
@@ -244,6 +246,15 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       (reuses the existing SQLite datastore).
 - [ ] **Phase 5 – Extras:** sync with iCloud/Google Drive, rate limiting,
       Range-request support, polish.
+- [~] **Phase 6 – joel.pistora.se placeholder:** Joel's personal site, on its
+      own subdomain, separate from the storage product. v1 scope deliberately
+      minimal — a placeholder page (`site/joel/index.html`): photo, name,
+      mailto + LinkedIn/Instagram/Spotify links, no framework/build step,
+      hosted on **Cloudflare Pages** (not Hostek), with a visual identity of
+      its own distinct from "Fog & Steel". The full portfolio (About,
+      Projects, Work experience) is future work, not this phase. **Remaining:**
+      add the real photo (`site/joel/photo.jpg`), connect the Cloudflare
+      Pages project and custom domain (dashboard steps, not yet done).
 
 **Where we are right now:** **Phases 0–4 done (branch `phase-2-file-actions`,
 not yet merged to `main`) — the full stack (storage, file browser, auth,
