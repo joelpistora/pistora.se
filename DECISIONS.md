@@ -494,3 +494,31 @@ via the dashboard) is otherwise the same shape. Also better aligned with an
 earlier open question about this site eventually wanting "more logic" —
 Workers is the same product that logic would run on, so there's nothing to
 migrate if that need shows up later.
+
+## Phase 6 live; photo moved to a full-bleed hero (2026-09-15)
+
+Confirmed `joel.pistora.se` resolving and serving correctly end to end (DNS,
+TLS, content, all four contact links) — Phase 6 v1 is live.
+
+Same day, redesigned from the small circular avatar to a full-bleed photo
+hero: name + links overlaid at the bottom of the viewport over a dark
+linear-gradient scrim for legibility, no more centered card. The photo is
+hotlinked from Cloudflare R2 (`assets.joel.pistora.se`) rather than committed
+to the repo — decided earlier when the small avatar shipped, now acted on.
+`site/joel/photo.jpg` (the old cropped version) deleted from the working
+tree; still recoverable from git history if ever needed, not purged.
+
+**Incident: the first R2 upload briefly exposed GPS coordinates.** Joel's
+first upload to the new bucket was the raw, unprocessed photo straight off
+his iPhone — full EXIF intact, including precise GPS coordinates — and it
+was live on a public URL for several minutes before being caught and
+replaced. Caught by inspecting the live URL's bytes directly (not something
+the R2 dashboard surfaces), stripped EXIF/GPS and downsized it (4032×3024 →
+1920×2560, orientation baked in via `exif_transpose` before stripping so the
+photo doesn't end up sideways), Joel deleted the original object and
+uploaded the cleaned file under a new key
+(`IMG_8445_clean.jpg`) — confirmed via a cache-busting fetch that the old
+object is gone and the new one carries zero metadata. No serverside
+stripping sits in front of this bucket, so this is a manual step on every
+future photo swap, not something enforced automatically — worth remembering
+if `joel.pistora.se` ever gets real upload tooling.

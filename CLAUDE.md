@@ -152,7 +152,9 @@ forward to the workspaces.
   `index.html` = "under construction", served from pistora.se's `wwwroot\`;
   `apitest.html` = the frontend↔backend connectivity probe. `site/joel/` =
   the `joel.pistora.se` placeholder page (Phase 6) + its `wrangler.jsonc`,
-  deployed separately via Cloudflare Workers (static assets), not Hostek.
+  deployed separately via Cloudflare Workers (static assets), not Hostek. No
+  photo committed here — the full-bleed hero background is hotlinked from
+  Cloudflare R2 (`assets.joel.pistora.se`), kept out of git entirely.
 - **`infra/`** — ops notes & configs, not code. `infra/cloudflared/` (tunnel
   config example), `infra/dns/` (pistora.se DNS inventory + Cloudflare migration
   plan + Hostek support-request draft).
@@ -258,13 +260,18 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       visual identity of its own distinct from "Fog & Steel". Confirmed live
       2026-09-15: Worker connected to the repo (Git-connected, root
       `site/joel`, auto-deploys on push), custom domain `joel.pistora.se`
-      resolving and serving over HTTPS, all four links verified.
-      **Remaining (not blocking, future work):** the full portfolio (About,
-      Projects, Work experience) — not started, no content/design decided.
-      `site/joel/photo.jpg` is committed for now (small circular avatar); a
-      full-width redesign is planned (design direction TBD from Joel), at
-      which point the photo should move out of git to separate hosting (e.g.
-      Cloudflare R2) — deferred, not yet decided.
+      resolving and serving over HTTPS, all four links verified. Page redesigned
+      same day to a full-bleed photo hero (name + links overlaid at the bottom
+      over a dark gradient scrim) — the photo is hotlinked from Cloudflare R2
+      (`https://assets.joel.pistora.se/IMG_8445_clean.jpg`), not committed to
+      git; the earlier small cropped `site/joel/photo.jpg` was deleted.
+      **Caution:** the very first upload to that R2 bucket was the raw
+      iPhone original, GPS EXIF intact, briefly public before being replaced —
+      **any future photo swap must strip EXIF/GPS before upload**, the R2
+      object itself is the last line of defense, there's no server-side
+      stripping in front of it. **Remaining (not blocking, future work):** the
+      full portfolio (About, Projects, Work experience) — not started, no
+      content/design decided.
 
 **Where we are right now:** **Phases 0–4 done (branch `phase-2-file-actions`,
 not yet merged to `main`) — the full stack (storage, file browser, auth,
