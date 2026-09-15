@@ -575,3 +575,25 @@ object is gone and the new one carries zero metadata. No serverside
 stripping sits in front of this bucket, so this is a manual step on every
 future photo swap, not something enforced automatically — worth remembering
 if `joel.pistora.se` ever gets real upload tooling.
+
+## Art-directed responsive hero photos (2026-09-15)
+
+The single-photo hero (above) was a cropped square avatar's replacement, but
+one image can't frame well at both a wide desktop viewport and a narrow
+mobile one — `background-size: cover` only controls *how much* gets cropped,
+not *what's centered*, and this particular photo's subjects sit in a tall
+band that doesn't reduce well to a cinematic wide crop. Rather than force one
+compromise crop, Joel shot/framed two separate photos — a landscape one and a
+portrait one — and both are swapped via a `background-image` media query
+(`min-width: 700px` → landscape, otherwise portrait) — the standard
+"art direction" pattern for this exact problem.
+
+Both source photos arrived pasted into the chat, not as files — this session
+has no file access to a pasted image's bytes, only what it can see visually,
+so processing (EXIF/GPS strip, orientation bake-in, resize) needed the files
+saved to disk first (`site/joel/landscape.jpg` / `portrait.jpg`) before they
+could be touched. Both carried the same GPS EXIF block as the first incident
+(same phone) — stripped and resized before Joel uploaded them to R2 as
+`cats-landscape.jpg` / `cats-portrait.jpg`; the raw originals were deleted
+from the repo working tree right after (never committed, never should be —
+same reasoning as the single-photo version above).

@@ -274,9 +274,12 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       `site/joel`, auto-deploys on push), custom domain `joel.pistora.se`
       resolving and serving over HTTPS, all four links verified. Page redesigned
       same day to a full-bleed photo hero (name + links overlaid at the bottom
-      over a dark gradient scrim) — the photo is hotlinked from Cloudflare R2
-      (`https://assets.joel.pistora.se/IMG_8445_clean.jpg`), not committed to
-      git; the earlier small cropped `site/joel/photo.jpg` was deleted.
+      over a dark gradient scrim), then again to art-directed responsive
+      photos — separate landscape (`cats-landscape.jpg`, ≥700px viewports) and
+      portrait (`cats-portrait.jpg`, narrower) crops swapped via a
+      `background-image` media query, both hotlinked from Cloudflare R2
+      (`assets.joel.pistora.se`), not committed to git; the earlier small
+      cropped `site/joel/photo.jpg` was deleted.
       **Caution:** the very first upload to that R2 bucket was the raw
       iPhone original, GPS EXIF intact, briefly public before being replaced —
       **any future photo swap must strip EXIF/GPS before upload**, the R2
