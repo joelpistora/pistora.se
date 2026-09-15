@@ -222,78 +222,67 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       (kebab menu per row). **Remaining (optional polish, not blocking
       anything):** drag-drop, upload progress, multi-select, mobile layout,
       a "move to folder" picker (endpoint already supports it).
-- [~] **Phase 3 – Expose to the internet (running on a quick tunnel):** the
-      static `apps/web` build is live on pistora.se and reaches the home API
-      through a Cloudflare **quick** tunnel end-to-end. **Remaining:** migrate
-      pistora.se DNS to Cloudflare → stand up the *stable* named tunnel at
-      `api.pistora.se` → rebuild the frontend against that URL. Smaller loose
-      ends: HTTP→HTTPS redirect + `/files` deep-link routing on IIS
-      (`web.config`).
-- [ ] **Phase 4 – Auth & per-user storage (starts after the DNS migration):**
-      Cloudflare Access as the front door (email one-time-PIN, free ≤50 users) +
-      a Fastify middleware that verifies the Access JWT and routes each request
-      through `storage.forUser(email)` for per-user directories. Then sharing
-      between accounts (needs a small datastore — the project's first). Gated on
-      Phase 3's migration because Access binds to a Cloudflare-proxied hostname
-      — see Decision log.
-- [ ] **Phase 5 – Extras:** sync with iCloud/Google Drive, quotas, rate
-      limiting, Range-request support, polish.
+- [x] **Phase 3 – Expose to the internet:** `pistora.se` DNS migrated to
+      Cloudflare (2026-09-15), a named Cloudflare Tunnel runs `api.pistora.se`
+      → `localhost:3001` as a persistent systemd service, and the static
+      `apps/web` build is live on pistora.se driving that API end-to-end.
+      HTTP→HTTPS redirect + `/files`-style deep-link routing on IIS handled by
+      `apps/web/public/web.config`.
+- [x] **Phase 4 – Auth & per-user storage:** custom email + password auth —
+      session cookies (SQLite-backed), admin-invited users (OTP email, forced
+      password change on first login), per-user storage via
+      `storage.forUser(email)`, per-user quotas. Confirmed working in
+      **production**: login, `/files` browsing, and a hard reload on a deep
+      link all work with no redirect loop. Supersedes the earlier Cloudflare
+      Access plan — see Decision log. **Remaining:** sharing between accounts
+      (reuses the existing SQLite datastore).
+- [ ] **Phase 5 – Extras:** sync with iCloud/Google Drive, rate limiting,
+      Range-request support, polish.
 
-**Where we are right now:** **Phases 0–1 done & merged. Phase 2 foundation +
-minimal file browser done on branch `phase-2-foundation` (being merged to
-`main`) — proven end-to-end locally and in production through the quick tunnel.
-Phase 3 half-done (quick tunnel live). Next up is a free choice: the DNS
-migration, more Phase 2 polish, or Phase 4 auth once migrated.**
-- `apps/api` (Fastify 5 + TS): storage endpoints under `/api/files` +
-  `/api/dirs` (list / upload / download / delete / mkdir, nested folders,
-  streaming multipart, atomic-rename writes), a hardened path-safety helper
-  (`src/storage.ts`), `buildApp()` factory, fail-fast config, `node:test` suite
-  (34 tests, green). Code-reviewed (`/code-review high`) — fixes in `8ac4027`.
-  No auth yet — Phase 4. Serves a placeholder `STORAGE_ROOT` (`~/pistora-storage`)
-  until the drive arrives. Full API surface + module map: see "Codebase
-  structure → `apps/api`" above.
-- `apps/web`: portfolio scaffold stripped; minimal `layout.tsx` (Geist wiring
-  fixed); `globals.css` reconciled to Tailwind v4; `output: "export"` (static
-  build to `out/`). Typed API client at `src/lib/api/` (smoke-tested: mkdir →
-  upload → list → stat → download → delete → 404). **UI:** `/` "Pistora Web" hub
-  (API-status ping + Open files / Music-soon / Powerhouse buttons); `/files`
-  file browser — table listing, breadcrumb
-  navigation via `?path=`, folder-click to descend, a per-row kebab menu
-  (Download / Rename / Properties / Delete, folder delete warns on contents),
-  a New folder button, single-file upload into the current folder. Plain-text
-  loading/empty/error states. No drag-drop/upload-progress/multi-select yet.
-- `packages/shared`: created, holds the storage DTOs + `ErrorCode`; consumed as
-  source by both apps, no build step. First real use of the workspace.
-- **Deployed:** the `apps/web` static export (`out/`) is uploaded to pistora.se's
-  `wwwroot/` over FTPS (replacing the holding page). The live site drives the
-  home API through a Cloudflare **quick tunnel** — a fresh `*.trycloudflare.com`
-  URL each time it restarts, baked into the build via `NEXT_PUBLIC_API_BASE`.
-  Ephemeral by nature; the stable `api.pistora.se` is Phase 3's remaining work.
+**Where we are right now:** **Phases 0–4 done (branch `phase-2-file-actions`,
+not yet merged to `main`) — the full stack (storage, file browser, auth,
+per-user quotas) is live in production at `pistora.se` ↔ `api.pistora.se`.**
+- `apps/api` (Fastify 5 + TS): storage endpoints (`/api/files`, `/api/dirs`)
+  plus full auth (`/api/auth/*`, `/api/admin/*`, `/api/usage`) — session
+  cookies, SQLite-backed users, admin-invited OTP signup, per-user quotas.
+  `request.storage` is scoped per caller via `storage.forUser(email)`. Full
+  surface + module map: "Codebase structure → `apps/api`" above.
+- `apps/web`: `/` hub, `/files` file browser (browse / upload / download /
+  rename-move / delete / new-folder / properties, kebab menu per row),
+  `/login`, `/admin` (invite/edit users), `/account/password`. Fog & Steel
+  visual identity (Bricolage Grotesque + Hanken Grotesk + JetBrains Mono).
+  `output: "export"` + `trailingSlash: true` → static `out/`.
+- **Deployed:** the static export is uploaded to pistora.se's `wwwroot/` over
+  FTPS, driving the home API through the named tunnel at `api.pistora.se`.
+  Same registrable site as `pistora.se`, so the `SameSite=Lax` session cookie
+  flows correctly — auth works in prod, not just locally.
 
-**Blocking Phase 3 *and* Phase 4:** a *stable* `api.pistora.se` (and Cloudflare
-Access for auth) both need pistora.se's DNS moved to Cloudflare. Plan + DNS
-inventory + Hostek request are in `infra/dns/`. Waiting on the domain-account
-holder / Hostek admin to change the nameservers.
-
-**Phase 2 progress:**
-1. ~~Strip the stock scaffold; fix `layout.tsx` font wiring + `globals.css`
-   v4/v3 mix.~~ **Done.**
-2. ~~Create `packages/shared`, move the DTOs into it, wire `"shared": "*"` in
-   both apps.~~ **Done** (source-only, no build — see Codebase structure).
-3. ~~Typed API client in `apps/web` (`src/lib/api/`).~~ **Done** — `fetch`
-   wrapper over `/api/files` + `/api/dirs`, `ApiError`/`NetworkError`, base URL
-   from `NEXT_PUBLIC_API_BASE`.
-4. ~~File-browser UI~~ **Done (v1 + actions):** `/files` — table listing +
-   breadcrumbs (`?path=`), folder navigation, single-file upload, download,
-   per-row kebab menu (rename / properties / delete), new folder. **Deferred:**
-   drag-drop, upload progress, multi-select, move-to-folder picker.
-5. ~~Prove upload/download end-to-end~~ **Done** — locally over `localhost`, and
-   in production (pistora.se → quick tunnel → home API).
-
-**Phase 2 foundation is complete.** Merge `phase-2-foundation` → `main`. Then
-pick the next thread freely: Phase 3 DNS migration, Phase 2 polish features
-(drag-drop / upload progress / multi-select / …), or Phase 4 auth (only *after*
-the migration).
+**Cloudflare cutover — done (2026-09-15).** What actually happened, since it
+deviated from the original runbook in `infra/dns/cloudflare-migration-plan.md`:
+- DNS: nameservers switched to Cloudflare's (`amir.ns.cloudflare.com` /
+  `clara.ns.cloudflare.com`), verified via `dig NS pistora.se @1.1.1.1` — note
+  this box's own local resolver kept serving a stale cached answer for a while
+  after the cutover; always re-check against a public resolver (`@1.1.1.1`)
+  before concluding DNS hasn't propagated.
+- Tunnel: created from the **Cloudflare Zero Trust dashboard**
+  (Networks → Tunnels → Create a tunnel → Cloudflared connector), not the CLI
+  `cloudflared tunnel login/create/route dns` flow the runbook and
+  `infra/cloudflared/config.example.yml` describe. The dashboard issues a
+  token instead of a cert + credentials file: `sudo cloudflared service
+  install <token>` installed it straight to
+  `/etc/systemd/system/cloudflared.service` (`ExecStart ... tunnel run
+  --token-file /etc/cloudflared/token`), and the public hostname
+  (`api.pistora.se` → `http://localhost:3001`) was set on the same dashboard
+  page, which also creates the proxied DNS CNAME automatically — no
+  `~/.cloudflared/config.yml` involved at all. `infra/cloudflared/config.example.yml`
+  is now stale as a "how we actually did it" reference (kept as a valid
+  alternative CLI-based method, e.g. if the dashboard token is ever lost and a
+  from-scratch CLI recreate is easier).
+- `apps/web/public/web.config` and `apps/web/.env.production.local` (see
+  "Codebase structure") worked exactly as prepped — no changes needed once the
+  tunnel was live.
+- `apps/api/.env` on the WSL2 box: confirmed `CORS_ORIGINS`/`COOKIE_SECURE`
+  set to prod values before the smoke test.
 
 In dev (no `CORS_ORIGINS` set) the API allows pistora.se + **any**
 `http(s)://localhost:<port>` / `127.0.0.1`, so it doesn't matter which port Next
@@ -317,23 +306,18 @@ parallel.
   API — every other device sees "API unreachable". Verify before uploading:
   `grep -r localhost:3001 apps/web/out/_next/` must be empty.
 - Deploy flow (working): `npm run build --workspace web` → FTPS-upload the
-  contents of `apps/web/out/` into `wwwroot/`. Loose ends for a clean Phase 3
-  finish: **no HTTP→HTTPS redirect** on pistora.se (http visitors get
-  CORS-blocked — API allowlist is https-only), and a hard-loaded
-  `pistora.se/files` may 404 on IIS (export emits `files.html`, not
-  `files/index.html`; client-side nav from `/` works). Both fixed with a
-  `web.config` (`trailingSlash: true` + redirect rule).
+  contents of `apps/web/out/` into `wwwroot/`. HTTP→HTTPS redirect and
+  hard-loaded deep links (`/files`, `/login`, …) are handled by
+  `apps/web/public/web.config`, shipped in every build.
 - `packages/shared` runtime-elision footgun: `apps/api` prod only works because
   the `shared` import is type-only. `verbatimModuleSyntax` guards it; a
   `grep -rn 'from "shared"' apps/api/dist` after a build should stay empty.
 - Next.js `15.5.25`: `npm audit` shows 3 items (`sharp` libvips CVEs, bundled
   `postcss`) that only a major bump to Next 16 clears — do it deliberately.
   (`next lint` is also deprecated, removed in Next 16.)
-- `site/apitest.html` holds a hard-coded ephemeral tunnel URL — expected to be
-  stale; repoint to `https://api.pistora.se` once the DNS migration lands.
-- Storage API has no auth, no quota, no rate limiting, no Range-request support
-  yet, and one shared namespace (no per-user dirs). All deliberate for Phase 1;
-  `storage.forUser()` is the seam auth slots into.
+- Storage API has no rate limiting and no Range-request support yet. Auth,
+  per-user quotas, and per-user namespacing (`storage.forUser()`) all landed
+  in Phase 4.
 - Multi-file uploads are not atomic as a batch — a failure partway leaves the
   earlier files committed and returns only the failing part's error (see
   DECISIONS.md → "Upload durability"). Fine for Phase 1; revisit if bulk upload
@@ -349,13 +333,13 @@ parallel.
 
 ## Open questions / to decide later
 
-- **Auth approach (decided 2026-09-10):** Cloudflare Access (free Zero Trust,
-  ≤50 users, email one-time-PIN) as the front door, sequenced *after* the DNS
-  migration. See Decision log. Open sub-questions: protect the whole site vs
-  just `/files` + the API; how the JS client handles an expired-session 302;
-  where sharing metadata lives (first datastore — SQLite? a JSON file?).
-- The site is currently public with **no auth** (quick tunnel, shared only with
-  trusted people by hand) — deliberate and temporary until Phase 4.
+- **Auth approach (decided 2026-09-10, revised same day):** custom email +
+  password auth (session cookies, admin-invited users, forced first-login
+  password change) — not Cloudflare Access, which was the original plan. See
+  Decision log. **Confirmed working in production (2026-09-15)** now that
+  `api.pistora.se` makes the cookie same-site. Open sub-question: where
+  sharing metadata lives (reuses the existing SQLite datastore, or a separate
+  table in it).
 - **Drive mount (decided 2026-09-09):** when the WD Elements 5TB arrives, plug
   it into Windows and use it via DrvFs at `/mnt/d`, keeping the factory NTFS
   format (`STORAGE_ROOT=/mnt/d/pistora`). Rationale: code is format-agnostic
@@ -405,12 +389,18 @@ Full history in [DECISIONS.md](DECISIONS.md). The still-load-bearing ones:
   inventory, migration plan, and Hostek request.
 - **Storage drive:** WD Elements 5TB, not yet on hand. When it arrives: DrvFs
   `/mnt/d`, keep NTFS (see Open questions for the rationale and migration path).
-- **Auth = Cloudflare Access, after the DNS migration (2026-09-10):** Phase 4
-  auth is sequenced behind Phase 3's Cloudflare migration. Access (free Zero
-  Trust, email one-time-PIN, ≤50 users) is the front door — it removes password
-  storage, session management, email verification, and MFA — but binds only to
-  a Cloudflare-proxied hostname, so the zone must move first. The API verifies
-  the Access JWT (`Cf-Access-Jwt-Assertion`) and routes each request through
-  `storage.forUser(email)` for per-user directories; sharing between accounts
-  stays application work (the project's first datastore). Building custom
-  email/password auth beforehand would be throwaway.
+- **Auth = custom email + password, revised same day (2026-09-10):** the
+  Cloudflare Access plan (below, superseded) was dropped in favor of building
+  auth directly: session cookies (SQLite-backed), admin-invited users (OTP
+  email, forced password change on first login), `storage.forUser(email)` for
+  per-user directories, per-user quotas. Confirmed working in production
+  (2026-09-15) after the Cloudflare migration: the session cookie is
+  `SameSite=Lax`, which only flows when the API is the same registrable site
+  as the web app — true for `api.pistora.se` ↔ `pistora.se`, unlike the
+  earlier quick tunnel's `*.trycloudflare.com` host, which was a different
+  site and made login loop in prod.
+  *(Superseded plan, kept for context: Cloudflare Access — free Zero Trust,
+  email one-time-PIN, ≤50 users — as the front door, verifying the Access JWT
+  server-side. Dropped because it's an extra moving part for little benefit
+  once building the login/session/OTP flow directly turned out to be
+  straightforward.)*

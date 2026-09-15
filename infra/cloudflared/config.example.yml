@@ -1,5 +1,17 @@
 # Cloudflare named tunnel config for the home API.
 #
+# NOT what production actually runs (as of 2026-09-15). The live tunnel was
+# created from the Cloudflare Zero Trust dashboard (Networks -> Tunnels ->
+# Cloudflared connector), which issues a token instead of a cert +
+# credentials file: `sudo cloudflared service install <token>` installed it
+# straight to /etc/systemd/system/cloudflared.service
+# (`tunnel run --token-file /etc/cloudflared/token`), and the public hostname
+# (api.pistora.se -> http://localhost:3001) was set on the same dashboard
+# page — no config.yml on disk at all. Kept here as a valid alternative
+# CLI-based method (e.g. to recreate the tunnel from scratch if the dashboard
+# token is ever lost). See CLAUDE.md -> "Cloudflare cutover — done" for the
+# full story.
+#
 # Real file lives at ~/.cloudflared/config.yml on the WSL2 box (NOT in the repo
 # — it references a credentials file that must stay private). This is the
 # checked-in reference copy.

@@ -74,9 +74,10 @@
   </main>
 
   <script>
-    // The Cloudflare quick-tunnel URL for the home API. This rotates every time
-    // the tunnel restarts — paste the current one here and re-upload.
-    const API_BASE = "https://novels-tion-cheapest-senate.trycloudflare.com";
+    // The home API, reached through the named Cloudflare tunnel. Stable once
+    // the DNS migration + tunnel are live — no more re-pasting a rotating
+    // trycloudflare.com URL after every tunnel restart.
+    const API_BASE = "https://api.pistora.se";
 
     const target = document.getElementById("target");
     const out = document.getElementById("out");

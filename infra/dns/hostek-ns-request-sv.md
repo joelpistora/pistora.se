@@ -18,9 +18,9 @@ Cloudflare.
 - ns2.ballou.se
 - ns3.ballou.se
 
-**Önskade namnservrar (ersätt samtliga ovan):**
-- `<CLOUDFLARE-NS-1>`
-- `<CLOUDFLARE-NS-2>`
+**Önskade namnservrar:**
+- amir.ns.cloudflare.com
+- clara.ns.cloudflare.com
 
 Jag har redan lagt upp en motsvarande DNS-zon hos Cloudflare med alla befintliga
 poster (A för @ och www, båda MX mot mailchannels.net, SPF-posten, TXT-posten

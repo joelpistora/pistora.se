@@ -300,3 +300,82 @@ plus the handful of still-load-bearing ones. Newest at the bottom.
   IBM Plex (more corporate), a Newsreader serif display (more editorial), and an
   all-mono treatment (too costly for reading). `FileProperties` overrides its
   filename `h2` back to the body face.
+
+## Cloudflare cutover prep (2026-09-15)
+
+- **Nameserver migration to Cloudflare is in progress** (see
+  `infra/dns/cloudflare-migration-plan.md`). Did the prep that doesn't need to
+  wait for it to finish, so the frontend can be rebuilt and reuploaded the
+  moment `api.pistora.se` (named tunnel) is live:
+  - `apps/web/public/web.config` — HTTP→HTTPS redirect + IIS 404→`/404.html`
+    mapping + a few MIME types. Ships automatically in every `out/` build
+    (Next copies `public/` verbatim on export). Deep links need no rewrite
+    rule — `trailingSlash: true` already exports `<route>/index.html` and
+    IIS's default-document behavior handles the rest.
+  - `apps/web/.env.production.local` (new, gitignored) pins
+    `NEXT_PUBLIC_API_BASE=https://api.pistora.se`. Next's env-file precedence
+    puts `.env.production.local` ahead of `.env.local` for any `next build`
+    (which always runs with `NODE_ENV=production`), so the deploy build is
+    correct regardless of what `.env.local` holds for local dev. This
+    directly closes the footgun from earlier (2026-09-10ish) where a prod
+    build baked in `localhost:3001` because `.env.local` hadn't been swapped
+    back before running `npm run build`.
+  - `site/apitest.html` repointed at `https://api.pistora.se` (was a stale
+    `trycloudflare.com` URL).
+  - Confirmed `cloudflared` (`2026.8.3`) is already installed on the WSL2 box
+    and that it has systemd (`/etc/wsl.conf` → `systemd=true`), so
+    `sudo cloudflared service install` — the standard Linux persistence path —
+    applies directly; no hand-rolled unit file needed.
+  - Left for the user to run interactively once the Cloudflare zone is Active
+    (needs browser OAuth + their Cloudflare account): `cloudflared tunnel
+    login` → `tunnel create pistora-home` → fill `~/.cloudflared/config.yml`
+    → `tunnel route dns pistora-home api.pistora.se` → `service install`.
+- While auditing this, found `CLAUDE.md`'s Decision log and roadmap still
+  described the original **Cloudflare Access** auth plan, but the actual
+  2026-09-10 session (this file, "Phase 2 wrap" + "File & folder actions"
+  sections) shows auth was rebuilt as custom email+password the same day and
+  is now fully implemented (sessions, admin invites, quotas). Corrected
+  `CLAUDE.md` to match — the DNS-migration dependency for auth still holds,
+  just for a different reason now (SameSite cookie needs same-site
+  `api.pistora.se` ↔ `pistora.se`, not an Access-hostname requirement).
+
+## Cloudflare migration live; auth confirmed in production (2026-09-15)
+
+- **DNS cut over.** `pistora.se` nameservers now `amir.ns.cloudflare.com` /
+  `clara.ns.cloudflare.com`. Verified against a public resolver
+  (`dig NS pistora.se @1.1.1.1`) — this WSL2 box's own default resolver kept
+  answering with the old Hostek nameservers from cache well after the cutover
+  had actually propagated, which briefly looked like the migration hadn't
+  taken. Worth remembering for any future "did DNS change land yet?" check.
+- **Tunnel created via the Cloudflare dashboard, not the CLI.** Zero Trust →
+  Networks → Tunnels → Cloudflared connector → named it `pistora-home`. The
+  dashboard gives a token instead of a cert; `sudo cloudflared service install
+  <token>` installed it directly as a systemd unit
+  (`/etc/systemd/system/cloudflared.service`, `tunnel run --token-file
+  /etc/cloudflared/token`). The public hostname (`api.pistora.se` →
+  `http://localhost:3001`) was set on the same dashboard page, which also
+  creates the proxied DNS CNAME automatically. Simpler than the
+  `tunnel login` → `create` → `route dns` CLI sequence the original runbook
+  (`infra/dns/cloudflare-migration-plan.md`) and
+  `infra/cloudflared/config.example.yml` describe — no local `config.yml` or
+  credentials file involved at all. Both docs now flag this as the actual
+  method, keeping the CLI flow documented as a fallback.
+- **Two unrelated local snags along the way, both fixed, neither a code bug:**
+  `/mnt/d` (the WD Elements 5TB drive, DrvFs) had gone stale in WSL's mount
+  table — `mount` still showed the entry but the device was unreachable ("No
+  such device") even though Windows still showed `D:` fine. Fixed with
+  `sudo umount /mnt/d && sudo mount -t drvfs D: /mnt/d`, no WSL restart
+  needed. Separately, `npm run dev:api` failed with `EADDRINUSE:3001` because
+  an earlier `dev:api` from a different terminal was still holding the port —
+  killed the stale `tsx watch` process tree and retried.
+- **Confirmed end-to-end in production:** `https://api.pistora.se/health` →
+  `{"status":"ok"}` through the tunnel; on `pistora.se` — login, `/files`
+  browsing, and a hard reload on a deep link all work with no redirect loop.
+  This is the first time Phase 4 auth has worked outside local dev — the
+  `SameSite=Lax` session cookie needed the API to be same-registrable-site
+  with the web app, which only a named tunnel on `api.pistora.se` (not the old
+  `*.trycloudflare.com` quick tunnel) provides.
+- Phases 3 and 4 are both marked done in `CLAUDE.md`'s roadmap now. Remaining
+  work is Phase 5-shaped: sharing between accounts, rate limiting,
+  Range-request support, the still-optional Phase 2 UI polish (drag-drop,
+  upload progress, multi-select, mobile layout).

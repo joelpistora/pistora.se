@@ -1,5 +1,14 @@
 # Plan: migrate pistora.se DNS to Cloudflare
 
+**Status: done (2026-09-15).** DNS migrated, `api.pistora.se` is live via a
+named Cloudflare Tunnel, and production auth is confirmed working end to end.
+This doc is kept as the historical runbook + rollback reference. One real
+deviation from the plan below: the tunnel was created from the **Cloudflare
+Zero Trust dashboard** (token-based `cloudflared service install`), not the
+CLI `tunnel login/create/route dns` flow in step 1 below — see
+`infra/cloudflared/config.example.yml` and `CLAUDE.md` → "Cloudflare cutover —
+done" for what actually ran.
+
 Goal: Cloudflare becomes the authoritative DNS for pistora.se, so we can point
 `api.pistora.se` at a Cloudflare Tunnel. Website + email stay at Hostek,
 unchanged. See `pistora-se-dns.md` for the record inventory this plan copies.
@@ -66,15 +75,23 @@ back to `/login`. `api.pistora.se` fixes this because it is same-site with
 `pistora.se`.
 
 ### 1. Named tunnel for the home API
-- `cloudflared tunnel login` (pick the `pistora.se` zone) → `cloudflared tunnel
-  create pistora-home` → copy `infra/cloudflared/config.example.yml` to
-  `~/.cloudflared/config.yml`, fill the two placeholders →
-  `cloudflared tunnel route dns pistora-home api.pistora.se`.
+- `cloudflared` is already installed on the WSL2 box (`cloudflared version` →
+  `2026.8.3`), not yet logged in (no `~/.cloudflared/cert.pem`).
+- `cloudflared tunnel login` (pick the `pistora.se` zone — needs the zone
+  already present in the Cloudflare account, doesn't need NS propagation to
+  have finished) → `cloudflared tunnel create pistora-home` → copy
+  `infra/cloudflared/config.example.yml` to `~/.cloudflared/config.yml`, fill
+  the two placeholders → `cloudflared tunnel route dns pistora-home
+  api.pistora.se`.
 - In Cloudflare DNS: the `api` CNAME to `<uuid>.cfargotunnel.com` is created by
   that `route dns` command — **proxied (orange cloud)**, which is required.
-- Run it persistently, not from a shell that closes:
-  `cloudflared service install` (Windows) or a systemd unit / Task Scheduler
-  entry. Verify `curl https://api.pistora.se/health` → `{"status":"ok"}`.
+- Run it persistently, not from a shell that closes. This WSL2 instance has
+  systemd enabled (`/etc/wsl.conf` → `[boot] systemd=true`), so
+  `sudo cloudflared service install` works like on a normal Linux box — it
+  reads `~/.cloudflared/config.yml`, installs `/etc/systemd/system/cloudflared.service`,
+  and survives a `wsl --shutdown` / Windows reboot as long as WSL auto-starts
+  (or start it once per Windows login some other way if it doesn't). Verify
+  `curl https://api.pistora.se/health` → `{"status":"ok"}`.
 
 ### 2. Home API production env (`apps/api/.env` on the WSL2 box)
 - `STORAGE_ROOT=…`, `DB_PATH=…`, `ADMIN_EMAIL=…` — as already set.
@@ -88,7 +105,12 @@ back to `/login`. `api.pistora.se` fixes this because it is same-site with
   and `npm run reset-otp --workspace api -- <email>` is the recovery hatch.
 
 ### 3. Rebuild + redeploy the frontend against the real API
-- `apps/web/.env.local`: `NEXT_PUBLIC_API_BASE=https://api.pistora.se`
+- Already prepped (2026-09-15): `apps/web/.env.production.local` (gitignored,
+  see `apps/web/env.production.example`) sets
+  `NEXT_PUBLIC_API_BASE=https://api.pistora.se` and wins over `.env.local`'s
+  `localhost:3001` for every `next build` — no more editing `.env.local` before
+  a deploy build (that was the exact footgun that shipped a `localhost`-baked
+  build to prod once already).
 - `npm run build --workspace web`
 - **Verify before upload:** `grep -rl "trycloudflare\|localhost:3001" apps/web/out/_next/`
   must be empty; `grep -rl "api.pistora.se" apps/web/out/_next/` must hit.
@@ -96,12 +118,14 @@ back to `/login`. `api.pistora.se` fixes this because it is same-site with
   previous static build).
 
 ### 4. IIS `web.config` in `wwwroot/` (deep links + HTTPS)
-`output: "export"` + `trailingSlash: true` emits `login/index.html`,
-`admin/index.html`, `account/password/index.html`, `files/index.html`. A hard
-load of `/login`, `/admin`, `/files`, `/account/password` needs IIS to serve the
-matching `index.html`; also add HTTP→HTTPS (http visitors are CORS-blocked, the
-API allowlist is https-only). One `web.config` with a URL-rewrite rule covers
-both.
+Already prepped (2026-09-15): `apps/web/public/web.config` — Next copies
+`public/` into `out/` on export, so it ships automatically with every build.
+Handles the HTTP→HTTPS redirect (http visitors are CORS-blocked, the API
+allowlist is https-only) and maps IIS's 404 to the exported `/404.html`, plus a
+few MIME types stock IIS doesn't know (`.svg`, `.webmanifest`, `.woff*`). Deep
+links (`/login`, `/admin`, `/files`, `/account/password`) need no rewrite rule:
+`trailingSlash: true` already exports each as `<route>/index.html`, and IIS's
+own default-document + directory-redirect behavior serves it.
 
 ### 5. Smoke test in prod
 - `https://pistora.se` loads; the account menu is absent when signed out.
