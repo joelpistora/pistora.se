@@ -28,14 +28,6 @@
       Helvetica, Arial, sans-serif;
     position: relative;
   }
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(ellipse 70% 55% at 50% 42%,
-      rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0.32) 100%);
-    pointer-events: none;
-  }
   main {
     position: relative;
     text-align: center;
@@ -43,10 +35,10 @@
   }
   h1 {
     margin: 0 auto;
-    max-width: 22rem;
     font-family: "Doppio One", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-weight: 400;
     font-size: clamp(2.75rem, 10vw, 4.75rem);
+    line-height: 0.92;
     letter-spacing: -0.01em;
     text-wrap: balance;
     text-shadow: 0 2px 20px rgba(0, 0, 0, 0.55);
@@ -91,7 +83,7 @@
 </head>
 <body>
   <main>
-    <h1>Joel Pistora</h1>
+    <h1>JOEL PISTORA</h1>
     <ul class="links">
       <li>
         <a href="mailto:joel@pistora.se" aria-label="Email">
