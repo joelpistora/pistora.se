@@ -6,7 +6,8 @@ Workflow: `.github/workflows/ci-deploy.yml` (+ `.github/dependabot.yml`).
 - Environments → New environment `production`.
   - Secrets: `FTP_HOST`, `FTP_USER`, `FTP_PASSWORD` (Hostek FTP account).
   - Variables (optional): `FTP_SERVER_DIR` (default `./`; use `wwwroot/` if the
-    FTP login lands above it), `FTP_PORT` (default `21`).
+    FTP login lands above it), `FTP_PORT` (default `21`), `FTP_SECURITY` (`strict` default; `loose` skips
+    certificate hostname checks, needed while `FTP_HOST` doesn't match `*.hostek.se`).
 - Never commit credentials.
 
 ## FTPS mode
