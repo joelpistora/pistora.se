@@ -37,6 +37,20 @@ export interface AppConfig {
   exposeInviteOtp: boolean;
   /** Quota (bytes) a newly invited user starts with. Admins can change it per user afterwards. */
   defaultQuotaBytes: number;
+
+  // ---- rate limiting -------------------------------------------------------
+  /** Max requests per client IP per window, across the whole API. */
+  rateLimitMax: number;
+  /** Stricter cap for state-changing `/api/auth/*` requests (login, request-account, …). */
+  rateLimitAuthMax: number;
+  /** Window length for both caps, ms. */
+  rateLimitWindowMs: number;
+  /**
+   * Behind the Cloudflare tunnel every request arrives from localhost; when true,
+   * the client IP is taken from the `CF-Connecting-IP` header. Only enable when
+   * the API is reachable solely through the tunnel (otherwise the header is spoofable).
+   */
+  trustProxy: boolean;
 }
 
 const DEFAULT_CORS_ORIGINS = ["https://pistora.se", "https://www.pistora.se"];
@@ -106,5 +120,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     exposeInviteOtp: env.EXPOSE_INVITE_OTP?.trim().toLowerCase() === "true",
     defaultQuotaBytes:
       Number(env.DEFAULT_USER_QUOTA_BYTES) || DEFAULT_QUOTA_BYTES,
+    rateLimitMax: Number(env.RATE_LIMIT_MAX) || 300,
+    rateLimitAuthMax: Number(env.RATE_LIMIT_AUTH_MAX) || 10,
+    rateLimitWindowMs: Number(env.RATE_LIMIT_WINDOW_MS) || 60_000,
+    trustProxy: env.TRUST_PROXY?.trim().toLowerCase() === "true",
   };
 }

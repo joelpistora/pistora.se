@@ -1,14 +1,18 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useDirectory } from "@/hooks/useDirectory";
+import { useUploads } from "@/hooks/useUploads";
+import { filesFromDrop } from "@/lib/dropFiles";
 import Breadcrumbs from "./Breadcrumbs";
 import FileTable from "./FileTable";
 import NewFolderButton from "./NewFolderButton";
+import SharedPanel from "./SharedPanel";
 import StorageBar from "./StorageBar";
 import UploadButton from "./UploadButton";
+import UploadPanel from "./UploadPanel";
 
 /** Normalise a path: no leading/trailing slashes, no empty segments. */
 function clean(path: string): string {
@@ -29,6 +33,10 @@ export default function FileBrowser() {
     setUsageKey((k) => k + 1);
   }, [reload]);
 
+  const uploads = useUploads(afterChange);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+
   const navigate = useCallback(
     (next: string) => {
       const target = clean(next);
@@ -42,8 +50,69 @@ export default function FileBrowser() {
     [navigate, path],
   );
 
+  const shared = searchParams.get("view") === "shared";
+
+  const tabs = (
+    <div className="flex gap-2 text-sm">
+      {[
+        { label: "My files", href: "/files", on: !shared },
+        { label: "Shared", href: "/files?view=shared", on: shared },
+      ].map((t) => (
+        <button
+          key={t.label}
+          type="button"
+          onClick={() => router.push(t.href)}
+          className={`rounded border px-3 py-1 uppercase tracking-wide ${
+            t.on ? "border-accent text-accent" : "border-foreground/20"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (shared) {
+    return (
+      <div className="flex flex-col gap-4">
+        {tabs}
+        <SharedPanel />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="relative flex flex-col gap-4"
+      onDragEnter={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current++;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        void filesFromDrop(e.dataTransfer).then((files) => {
+          if (files.length) uploads.enqueue(path, files);
+        });
+      }}
+    >
+      {dragging && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded border-2 border-dashed border-accent bg-background/80 text-lg uppercase tracking-wide text-accent">
+          Drop to upload to /{path}
+        </div>
+      )}
+      {tabs}
       {user?.role === "admin" && (
         <p className="text-xs text-foreground/50">
           Admin view — browsing the entire storage root. Each account&apos;s files
@@ -57,9 +126,15 @@ export default function FileBrowser() {
         <Breadcrumbs path={path} onNavigate={navigate} />
         <div className="flex flex-wrap items-center gap-2">
           <NewFolderButton path={path} onCreated={afterChange} />
-          <UploadButton path={path} onUploaded={afterChange} />
+          <UploadButton onPick={(files) => uploads.enqueue(path, files)} />
         </div>
       </div>
+
+      <UploadPanel
+        items={uploads.items}
+        onCancel={uploads.cancel}
+        onClear={uploads.clearFinished}
+      />
 
       {loading && <p className="text-sm text-foreground/60">Loading…</p>}
 

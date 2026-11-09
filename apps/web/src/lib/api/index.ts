@@ -41,6 +41,17 @@ export {
   resetOtp,
   deleteUser,
 } from "./auth";
+export { uploadFileWithProgress } from "./upload";
+export {
+  createShare,
+  listShares,
+  deleteShare,
+  listSharedDir,
+  sharedFileUrl,
+  getPublicShare,
+  listPublicDir,
+  publicFileUrl,
+} from "./shares";
 export type {
   HealthResponse,
   PingResponse,
@@ -65,4 +76,7 @@ export type {
   AdminUserListResponse,
   CreateUserResponse,
   UsageResponse,
+  Share,
+  CreateShareRequest,
+  PublicShareInfo,
 } from "shared";

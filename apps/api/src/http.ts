@@ -1,4 +1,16 @@
-import type { FastifyError, FastifyInstance } from "fastify";
+import type { FastifyError, FastifyInstance, FastifyRequest } from "fastify";
+
+/**
+ * The caller's IP. Behind the Cloudflare tunnel `req.ip` is always loopback, so
+ * with `config.trustProxy` we read `CF-Connecting-IP` instead.
+ */
+export function clientIp(app: FastifyInstance, req: FastifyRequest): string {
+  if (app.config.trustProxy) {
+    const cf = req.headers["cf-connecting-ip"];
+    if (typeof cf === "string" && cf.trim()) return cf.trim();
+  }
+  return req.ip;
+}
 
 /**
  * One JSON error shape for the whole API: `{ error: { code, message, details? } }`.
@@ -20,6 +32,7 @@ const STATUS_SLUGS: Record<number, string> = {
   409: "conflict",
   413: "payload_too_large",
   415: "unsupported_media_type",
+  416: "range_not_satisfiable",
   422: "unprocessable_entity",
   429: "too_many_requests",
 };

@@ -127,7 +127,8 @@ export type ErrorCode =
   | "otp_expired"
   | "weak_password"
   | "too_many_requests"
-  | "quota_exceeded";
+  | "quota_exceeded"
+  | "range_not_satisfiable";
 
 export interface ErrorEnvelope {
   error: {
@@ -136,4 +137,43 @@ export interface ErrorEnvelope {
     message: string;
     details?: unknown;
   };
+}
+
+// ---- sharing --------------------------------------------------------------
+
+/** A read-only grant on a file/folder in the owner's storage (see DECISIONS.md → Sharing). */
+export interface Share {
+  id: string;
+  /** Owner-relative path of the shared item (no leading slash). */
+  path: string;
+  /** Last path segment, for display. */
+  name: string;
+  type: "file" | "directory";
+  ownerEmail: string;
+  /** Set for a user share. */
+  recipientEmail: string | null;
+  /** Set for a link share — the secret in the public URL. Only sent to the owner. */
+  token: string | null;
+  createdAt: number;
+  /** Epoch ms, or null for never. */
+  expiresAt: number | null;
+}
+
+/** Body of `POST /api/shares`. Provide exactly one of `with` (recipient email) or `link: true`. */
+export interface CreateShareRequest {
+  path: string;
+  with?: string;
+  link?: boolean;
+  expiresAt?: number | null;
+}
+
+export interface ShareListResponse {
+  shares: Share[];
+}
+
+/** `GET /api/public/<token>` — what a link points at. */
+export interface PublicShareInfo {
+  name: string;
+  type: "file" | "directory";
+  expiresAt: number | null;
 }

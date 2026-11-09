@@ -24,6 +24,7 @@ import {
   setPassword,
   touchLastLogin,
 } from "../db/users.js";
+import { clientIp } from "../http.js";
 import { ensureUserDir } from "../storage.js";
 
 const MIN_PASSWORD_LEN = 10;
@@ -165,7 +166,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
       throttle.reset(email);
       if (user.role !== "admin") ensureUserDir(app.storage, user.email);
-      mintSession(reply, user.id, req.headers["user-agent"], req.ip);
+      mintSession(reply, user.id, req.headers["user-agent"], clientIp(app, req));
       touchLastLogin(app.db, user.id, now);
 
       return { user: toAuthUser(user) };
@@ -206,7 +207,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const now = app.now();
-      const wait = requestAccountThrottle.retryAfter(req.ip, now);
+      const wait = requestAccountThrottle.retryAfter(clientIp(app, req), now);
       if (wait > 0) {
         reply.header("Retry-After", String(wait));
         throw new AuthError(
@@ -215,7 +216,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           `too many requests — try again in ${wait}s`,
         );
       }
-      requestAccountThrottle.recordFailure(req.ip, now);
+      requestAccountThrottle.recordFailure(clientIp(app, req), now);
 
       if (getUserByEmail(app.db, email)) {
         throw app.httpErrors.conflict("an account with that email already exists");
@@ -294,7 +295,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       // Rotate the session across the privilege change (defeats fixation).
       const oldToken = req.cookies[app.config.cookieName];
       if (oldToken) deleteSession(app.db, hashToken(oldToken));
-      mintSession(reply, row.id, req.headers["user-agent"], req.ip);
+      mintSession(reply, row.id, req.headers["user-agent"], clientIp(app, req));
 
       return { user: toAuthUser(getUserById(app.db, row.id)!) };
     },

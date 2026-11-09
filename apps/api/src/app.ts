@@ -2,19 +2,21 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import sensible from "@fastify/sensible";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { ensureAdminUser } from "./auth/bootstrap.js";
 import { makeAuthHook } from "./auth/hook.js";
 import type { AppConfig } from "./config.js";
 import { openDb, type DatabaseSync } from "./db/index.js";
 import { deleteExpiredSessions } from "./db/sessions.js";
-import { registerErrorHandler } from "./http.js";
+import rateLimit from "@fastify/rate-limit";
+import { clientIp, registerErrorHandler } from "./http.js";
 import { createConsoleMailer, type Mailer } from "./mail/index.js";
 import { adminRoutes } from "./routes/admin.js";
 import { authRoutes } from "./routes/auth.js";
 import { dirRoutes } from "./routes/dirs.js";
 import { fileRoutes } from "./routes/files.js";
 import { healthRoutes } from "./routes/health.js";
+import { publicShareRoutes, shareRoutes } from "./routes/shares.js";
 import { usageRoutes } from "./routes/usage.js";
 import { createStorage, type Storage } from "./storage.js";
 
@@ -80,6 +82,9 @@ export async function buildApp(
     exposedHeaders: [
       "Content-Disposition",
       "Content-Length",
+      "Content-Range",
+      "Accept-Ranges",
+      "Retry-After",
       "Content-Type",
       "Last-Modified",
     ],
@@ -94,11 +99,32 @@ export async function buildApp(
   });
 
   registerErrorHandler(app);
+
+  // Per-IP rate limit. One hook, two buckets: state-changing `/api/auth/*`
+  // requests (login, request-account, change-password) get the strict cap;
+  // everything else the generous one. (A second rate-limit hook can't be
+  // stacked — the plugin skips a request it has already counted.) Added as a
+  // root onRequest hook rather than the plugin's per-route `global` mode so it
+  // runs BEFORE the guarded scope's auth hook; otherwise a flood of
+  // unauthenticated requests would 401 without ever being counted.
+  const isAuthWrite = (req: FastifyRequest) =>
+    req.method === "POST" && req.url.startsWith("/api/auth/");
+  await app.register(rateLimit, { global: false });
+  app.addHook(
+    "onRequest",
+    app.rateLimit({
+      max: (req) => (isAuthWrite(req) ? config.rateLimitAuthMax : config.rateLimitMax),
+      timeWindow: config.rateLimitWindowMs,
+      keyGenerator: (req) => `${isAuthWrite(req) ? "auth:" : ""}${clientIp(app, req)}`,
+      allowList: (req) => req.url === "/health",
+    }),
+  );
   await ensureAdminUser(app);
 
   // Open routes.
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(publicShareRoutes, { prefix: "/api/public" });
 
   // Guarded scope: everything here requires a valid session. Fastify
   // encapsulation keeps the hook local to this register() call.
@@ -107,6 +133,7 @@ export async function buildApp(
     await secure.register(fileRoutes, { prefix: "/api/files" });
     await secure.register(dirRoutes, { prefix: "/api/dirs" });
     await secure.register(adminRoutes, { prefix: "/api/admin" });
+    await secure.register(shareRoutes, { prefix: "/api/shares" });
     await secure.register(usageRoutes, { prefix: "/api" });
   });
 

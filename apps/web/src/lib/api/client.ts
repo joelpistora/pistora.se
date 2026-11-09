@@ -31,6 +31,7 @@ function statusToCode(status: number): string {
     405: "method_not_allowed",
     409: "conflict",
     413: "payload_too_large",
+    416: "range_not_satisfiable",
     415: "unsupported_media_type",
     422: "unprocessable_entity",
     429: "too_many_requests",
@@ -154,7 +155,7 @@ export function statEntry(path: string, opts: RequestOpts = {}): Promise<FileMet
  * `res.body` and read the CORS-exposed `Content-Disposition` / `Content-Length`
  * / `Content-Type` headers. Throws {@link ApiError} on non-2xx.
  *
- * The API sends `Accept-Ranges: none` — no partial/resumable downloads.
+ * The API honours single `Range: bytes=…` requests (206), so media can seek.
  */
 export async function downloadResponse(
   path: string,

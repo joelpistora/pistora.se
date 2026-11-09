@@ -1,65 +1,45 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { ApiError, isNetworkError, uploadFiles } from "@/lib/api";
+import { useRef } from "react";
+import { filesFromInput, type QueuedFile } from "@/lib/dropFiles";
 
 interface UploadButtonProps {
-  /** Folder to upload into, "" for the storage root. */
-  path: string;
-  /** Called after a successful upload so the listing can refresh. */
-  onUploaded: () => void;
+  /** Hand picked files to the upload queue. */
+  onPick: (files: QueuedFile[]) => void;
 }
 
-export default function UploadButton({ path, onUploaded }: UploadButtonProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/** "Upload files" / "Upload folder" pickers; the queue + progress live in the parent. */
+export default function UploadButton({ onPick }: UploadButtonProps) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dirRef = useRef<HTMLInputElement>(null);
 
-  async function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-picking the same file
-    if (!file) return;
-
-    setBusy(file.name);
-    setError(null);
-    try {
-      await uploadFiles(path, [file]);
-      onUploaded();
-    } catch (err) {
-      if (isNetworkError(err)) {
-        setError("Upload failed — can't reach the API.");
-      } else if (err instanceof ApiError && err.code === "quota_exceeded") {
-        setError("Not enough space — this file would put you over your storage limit.");
-      } else if (err instanceof ApiError) {
-        setError(`Upload failed: ${err.message}`);
-      } else {
-        setError("Upload failed.");
-      }
-    } finally {
-      setBusy(null);
-    }
+  function handle(e: React.ChangeEvent<HTMLInputElement>) {
+    const list = e.target.files;
+    if (list && list.length > 0) onPick(filesFromInput(list));
+    e.target.value = ""; // allow re-picking the same selection
   }
 
+  const btn =
+    "rounded border border-foreground/20 px-3 py-1.5 text-sm uppercase tracking-wide hover:bg-foreground/10";
+
   return (
-    <div className="flex items-center gap-3">
+    <>
+      <input ref={fileRef} type="file" multiple onChange={handle} className="hidden" />
       <input
-        ref={inputRef}
+        ref={dirRef}
         type="file"
-        onChange={handlePick}
+        multiple
+        onChange={handle}
         className="hidden"
+        // Non-standard but universally supported attribute for folder picking.
+        {...({ webkitdirectory: "" } as Record<string, string>)}
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={busy !== null}
-        className="rounded border border-foreground/20 px-3 py-1.5 text-sm hover:bg-foreground/10 disabled:opacity-50"
-      >
-        Upload file
+      <button type="button" onClick={() => fileRef.current?.click()} className={btn}>
+        Upload files
       </button>
-      {busy && (
-        <span className="text-sm text-foreground/60">Uploading {busy}…</span>
-      )}
-      {error && <span className="text-sm text-red-600">{error}</span>}
-    </div>
+      <button type="button" onClick={() => dirRef.current?.click()} className={btn}>
+        Upload folder
+      </button>
+    </>
   );
 }

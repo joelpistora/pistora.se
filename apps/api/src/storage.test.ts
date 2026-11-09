@@ -9,7 +9,10 @@ let root: string;
 let storage: Storage;
 
 before(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "pistora-storage-test-"));
+  // realpath: on macOS os.tmpdir() is under the /var -> /private/var symlink.
+  root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "pistora-storage-test-")),
+  );
   storage = createStorage(root);
 });
 
