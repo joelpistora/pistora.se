@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center p-8 text-center">
       <div className="flex flex-1 flex-col items-center justify-center gap-20">
-        <h1 className="text-5xl">Pistora Hub</h1>
+        <h1 className="text-5xl">Pistora.se</h1>
 
         <ApiStatus />
 
