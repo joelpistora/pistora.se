@@ -358,7 +358,7 @@ parallel.
 - Deploy flow (automated, GitHub Actions — `.github/workflows/ci-deploy.yml`):
   PRs/pushes run CI (typecheck, lint, API tests, both builds, `shared` guard).
   A push to `main` then deploys: build with `NEXT_PUBLIC_API_BASE=https://api.pistora.se`,
-  verify no `localhost:3001` in `out/_next/` and `web.config` present, FTPS-upload
+  verify no `localhost:3001` in `out/_next/` and `web.config` present, FTPS-upload (lftp)
   `apps/web/out/` (no remote deletes), smoke-check pistora.se + api health.
   Manual run: Actions → CI / Deploy → Run workflow (`dry_run` defaults on).
   Needs `production`-environment secrets `FTP_HOST`/`FTP_USER`/`FTP_PASSWORD`

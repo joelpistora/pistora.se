@@ -88,24 +88,35 @@ jobs:
             echo "::error::apps/web/out/web.config missing (should come from apps/web/public/)"
             exit 1
           fi
-      - name: Upload to Hostek over FTPS
-        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          # Explicit FTPS. If Hostek needs implicit FTPS (port 990), use "ftps-legacy".
-          protocol: ftps
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+      - name: Upload to Hostek over FTPS (lftp)
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ vars.FTP_PORT || '21' }}
+          REMOTE_DIR: ${{ vars.FTP_SERVER_DIR || './' }}
           # "strict" verifies the server cert. Hostek's cert is for *.hostek.se, so a
           # host like capitalpidesign.se fails; set repo variable FTP_SECURITY=loose
           # until a matching *.hostek.se hostname is used.
-          security: ${{ vars.FTP_SECURITY || 'strict' }}
-          port: ${{ vars.FTP_PORT || 21 }}
-          local-dir: apps/web/out/
-          server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
-          # Never delete remote files that are not in the build.
-          dangerous-clean-slate: false
-          dry-run: ${{ env.DRY_RUN == 'true' }}
+          FTP_SECURITY: ${{ vars.FTP_SECURITY || 'strict' }}
+        run: |
+          # Explicit FTPS, encrypted control + data. No --delete: never removes remote files.
+          VERIFY=yes; [ "$FTP_SECURITY" = "loose" ] && VERIFY=no
+          DRY=""; [ "$DRY_RUN" = "true" ] && DRY="--dry-run"
+          # Credentials go through stdin (not argv) and are masked in logs by Actions.
+          lftp <<EOF
+          set cmd:fail-exit yes
+          set ftp:ssl-force true
+          set ftp:ssl-protect-data true
+          set ssl:verify-certificate $VERIFY
+          set net:max-retries 3
+          set net:timeout 30
+          open -p $FTP_PORT -u "$FTP_USER","$FTP_PASSWORD" ftp://$FTP_HOST
+          mirror -R --verbose --no-perms --parallel=2 $DRY apps/web/out/ $REMOTE_DIR
+          bye
+          EOF
       - name: Smoke check
         if: env.DRY_RUN != 'true'
         run: |
