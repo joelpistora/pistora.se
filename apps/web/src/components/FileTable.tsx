@@ -252,15 +252,12 @@ export default function FileTable({
               const rowBusy = busy === entry.name;
 
               const actions: MenuAction[] = [
-                ...(isDir
-                  ? []
-                  : [
-                      {
-                        label: "Download",
-                        href: fileUrl(join(path, entry.name), { download: true }),
-                        download: true,
-                      },
-                    ]),
+                {
+                  // A folder downloads as a streamed .zip.
+                  label: isDir ? "Download as zip" : "Download",
+                  href: fileUrl(join(path, entry.name), { download: true }),
+                  download: true,
+                },
                 { label: "Rename", onClick: () => setRenaming(entry.name) },
                 { label: "Move to…", onClick: () => setMoving([entry.name]) },
                 { label: "Share", onClick: () => setShareFor(entry) },

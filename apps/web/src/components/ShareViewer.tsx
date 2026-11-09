@@ -95,6 +95,16 @@ export default function ShareViewer({
         </a>
       )}
 
+      {type === "directory" && (
+        <a
+          href={fileHref(sub)}
+          download
+          className="w-fit rounded border border-foreground/20 px-3 py-1.5 text-sm uppercase tracking-wide hover:bg-foreground/10"
+        >
+          Download {sub ? sub.split("/").pop() : name} as zip
+        </a>
+      )}
+
       {error && <p className="text-sm text-red-600">{error}</p>}
       {type === "directory" && !listing && !error && (
         <p className="text-sm text-foreground/60">Loading…</p>

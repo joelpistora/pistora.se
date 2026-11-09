@@ -14,7 +14,7 @@ import {
   type ShareRow,
 } from "../db/shares.js";
 import { getUserByEmail, getUserById } from "../db/users.js";
-import { listDirectory, normaliseRel, sendFile } from "../file-serve.js";
+import { listDirectory, normaliseRel, sendFile, sendZip } from "../file-serve.js";
 import { ensureUserDir, type Storage } from "../storage.js";
 
 const errorResponses = {
@@ -73,9 +73,12 @@ async function serveShared(
   const stats = await fsp.stat(abs).catch(() => null);
   if (!stats) throw app.httpErrors.notFound("no such path");
 
-  if (stats.isDirectory()) return listDirectory(abs, subRel);
   const q = request.query as { download?: string };
   const download = q.download !== undefined && q.download !== "0" && q.download !== "false";
+  if (stats.isDirectory()) {
+    if (download) return sendZip(reply, abs, path.basename(abs));
+    return listDirectory(abs, subRel);
+  }
   return sendFile(request, reply, abs, stats, download);
 }
 

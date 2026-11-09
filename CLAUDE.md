@@ -134,7 +134,7 @@ forward to the workspaces.
     (`/api/files/*`: list / stat / download / upload / delete / `PATCH` rename-move),
     `dirs.ts` (`/api/dirs/*`: `mkdir -p`), `shares.ts` (`/api/shares`,
     `/api/public/<token>`), plus `auth.ts`, `admin.ts`, `usage.ts`.
-    `src/file-serve.ts` = listing + `sendFile` (Range/206/416) shared by the
+    `src/file-serve.ts` = listing + `sendFile`/`sendZip` (Range/206/416) shared by the
     owner, user-share and public-link download paths. `src/db/shares.ts` = DAO
     for the `shares` table (schema v3).
     `src/http.ts` = error envelope
@@ -146,7 +146,7 @@ forward to the workspaces.
   - **Storage API shape:** one shared namespace under `STORAGE_ROOT`, nested
     folders, no auth yet. `GET /api/files/<path>` → JSON listing for a
     directory, byte stream for a file (`?stat=1` for metadata, `?download=1`
-    forces attachment). `POST /api/files/<dir>` multipart → streamed to a temp
+    forces attachment; on a **folder** it streams a ZIP — `src/zip.ts`, dependency-free, ZIP64, constant memory, symlinks skipped; same for share/public routes). `POST /api/files/<dir>` multipart → streamed to a temp
     file then atomically renamed; overwrites allowed. `DELETE` (`?recursive=1`
     for a non-empty dir). `PATCH /api/files/<path>` `{ to }` = rename/move —
     parent must exist, no overwrite (`409`), no quota re-check (same per-user

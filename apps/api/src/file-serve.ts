@@ -4,6 +4,7 @@ import path from "node:path";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { DirListing, FileEntry } from "shared";
 import { contentTypeFor } from "./mime.js";
+import { zipDirectory } from "./zip.js";
 
 /** Shared by the owner's file routes and the share routes: listing + streaming. */
 
@@ -95,6 +96,25 @@ export function parseRange(
   return { start, end };
 }
 
+function contentDisposition(disposition: "attachment" | "inline", filename: string): string {
+  const asciiName = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
+/**
+ * Stream the directory at `abs` as `<name>.zip` (chunked, no Content-Length, no
+ * Range — the archive is generated on the fly). Contents sit under one `<name>/`
+ * folder so extracting never scatters files.
+ */
+export function sendZip(reply: FastifyReply, abs: string, name: string): FastifyReply {
+  const folder = name || "files";
+  return reply
+    .header("Content-Type", "application/zip")
+    .header("Cache-Control", "private, no-store")
+    .header("Content-Disposition", contentDisposition("attachment", `${folder}.zip`))
+    .send(zipDirectory(abs, folder));
+}
+
 export function sendFile(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -104,7 +124,6 @@ export function sendFile(
 ): FastifyReply {
   const filename = path.basename(abs);
   const disposition = forceDownload ? "attachment" : "inline";
-  const asciiName = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
   const lastModified = stats.mtime.toUTCString();
 
   reply
@@ -112,10 +131,7 @@ export function sendFile(
     .header("Last-Modified", lastModified)
     .header("Accept-Ranges", "bytes")
     .header("Cache-Control", "private, max-age=0, must-revalidate")
-    .header(
-      "Content-Disposition",
-      `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-    );
+    .header("Content-Disposition", contentDisposition(disposition, filename));
 
   // If-Range: only honour Range when the validator still matches.
   const ifRange = request.headers["if-range"];

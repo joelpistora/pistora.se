@@ -11,6 +11,7 @@ import {
   listDirectory,
   normaliseRel,
   sendFile,
+  sendZip,
   toEntry,
   UPLOAD_TEMP_PREFIX,
 } from "../file-serve.js";
@@ -127,6 +128,8 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
     }
 
     if (stats.isDirectory()) {
+      // `?download=1` on a folder streams it as a zip.
+      if (flag(query.download)) return sendZip(reply, abs, normaliseRel(rel) ? path.basename(abs) : "");
       return listDirectory(abs, rel);
     }
 
