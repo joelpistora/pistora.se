@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { formatDate, formatSize } from "@/lib/format";
 import FileProperties from "./FileProperties";
+import ShareDialog from "./ShareDialog";
 import KebabMenu, { type MenuAction } from "./KebabMenu";
 
 interface FileTableProps {
@@ -94,6 +95,7 @@ export default function FileTable({
   const [error, setError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [propsFor, setPropsFor] = useState<FileEntry | null>(null);
+  const [shareFor, setShareFor] = useState<FileEntry | null>(null);
 
   async function run(name: string, fn: () => Promise<unknown>) {
     setBusy(name);
@@ -181,6 +183,7 @@ export default function FileTable({
                       },
                     ]),
                 { label: "Rename", onClick: () => setRenaming(entry.name) },
+                { label: "Share", onClick: () => setShareFor(entry) },
                 { label: "Properties", onClick: () => setPropsFor(entry) },
                 {
                   label: "Delete",
@@ -232,6 +235,14 @@ export default function FileTable({
           </tbody>
         </table>
       </div>
+
+      {shareFor && (
+        <ShareDialog
+          path={join(path, shareFor.name)}
+          name={shareFor.name}
+          onClose={() => setShareFor(null)}
+        />
+      )}
 
       {propsFor && (
         <FileProperties

@@ -15,6 +15,7 @@ import { authRoutes } from "./routes/auth.js";
 import { dirRoutes } from "./routes/dirs.js";
 import { fileRoutes } from "./routes/files.js";
 import { healthRoutes } from "./routes/health.js";
+import { publicShareRoutes, shareRoutes } from "./routes/shares.js";
 import { usageRoutes } from "./routes/usage.js";
 import { createStorage, type Storage } from "./storage.js";
 
@@ -99,6 +100,7 @@ export async function buildApp(
   // Open routes.
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(publicShareRoutes, { prefix: "/api/public" });
 
   // Guarded scope: everything here requires a valid session. Fastify
   // encapsulation keeps the hook local to this register() call.
@@ -107,6 +109,7 @@ export async function buildApp(
     await secure.register(fileRoutes, { prefix: "/api/files" });
     await secure.register(dirRoutes, { prefix: "/api/dirs" });
     await secure.register(adminRoutes, { prefix: "/api/admin" });
+    await secure.register(shareRoutes, { prefix: "/api/shares" });
     await secure.register(usageRoutes, { prefix: "/api" });
   });
 

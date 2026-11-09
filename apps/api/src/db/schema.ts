@@ -53,5 +53,25 @@ export const SCHEMA_V2 = /* sql */ `
 ALTER TABLE users ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT ${DEFAULT_QUOTA_BYTES};
 `;
 
+/**
+ * v3: `shares` — read-only grants on a path in the owner's storage. Exactly one
+ * of `recipient_id` (user share) / `token` (link share) is set. See DECISIONS.md.
+ */
+export const SCHEMA_V3 = /* sql */ `
+CREATE TABLE shares (
+  id           TEXT    PRIMARY KEY,
+  owner_id     TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  path         TEXT    NOT NULL,
+  recipient_id TEXT    REFERENCES users(id) ON DELETE CASCADE,
+  token        TEXT    UNIQUE,
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER,
+  CHECK ((recipient_id IS NULL) <> (token IS NULL))
+);
+
+CREATE INDEX idx_shares_owner     ON shares(owner_id);
+CREATE INDEX idx_shares_recipient ON shares(recipient_id);
+`;
+
 /** Ordered migrations. Index + 1 is the `user_version` each one produces. */
-export const MIGRATIONS: readonly string[] = [SCHEMA_V1, SCHEMA_V2];
+export const MIGRATIONS: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3];

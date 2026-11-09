@@ -597,3 +597,36 @@ could be touched. Both carried the same GPS EXIF block as the first incident
 `cats-landscape.jpg` / `cats-portrait.jpg`; the raw originals were deleted
 from the repo working tree right after (never committed, never should be —
 same reasoning as the single-photo version above).
+
+## Sharing between accounts (2026-11-09)
+
+**Model.** A *share* grants read-only access to one file or folder (folders
+are recursive) in the owner's storage. Two kinds, one `shares` table (schema
+v3):
+
+- **User share** — `recipient_id` set. The recipient finds it under "Shared
+  with me" and can list/download, nothing else.
+- **Link share** — `token` set (32 random bytes, base64url). Anyone holding
+  the token can list/download via the unauthenticated `/api/public/<token>`
+  routes; the web app's static `/s?token=…` page is the viewer.
+
+Both carry an optional `expires_at` (epoch ms). Owners list and revoke
+(delete) their shares at any time.
+
+**Deliberate simplifications.**
+- Shares are keyed by **path**, not file identity: renaming/moving/deleting the
+  shared item makes the share dangle (404 on access) rather than follow it.
+  Following renames would need inode/ID tracking; not worth it at this scale.
+- **Download only** — no copy-to-my-files, so no recipient quota questions.
+  Shared bytes count against the owner only.
+- Link tokens are stored in plaintext so the owner can re-copy the link later;
+  the tokens are revocable and read-only, and the DB is not exposed.
+- Containment: every access resolves `<share.path>/<sub>` through the owner's
+  `Storage.resolve()` and additionally rejects any `sub` that leaves the shared
+  subtree (`..` segments), so a share of `a/b` can never reach `a/c`.
+- Admins share relative to the whole storage root (their `request.storage`),
+  consistent with how the auth hook scopes them.
+- Expired shares are filtered at access time (injectable `app.now`), not swept.
+
+**Endpoints.** `POST/GET /api/shares`, `DELETE /api/shares/:id`,
+`GET /api/shares/:id/files/*` (recipient or owner), `GET /api/public/:token/*`.

@@ -7,6 +7,7 @@ import { useDirectory } from "@/hooks/useDirectory";
 import Breadcrumbs from "./Breadcrumbs";
 import FileTable from "./FileTable";
 import NewFolderButton from "./NewFolderButton";
+import SharedPanel from "./SharedPanel";
 import StorageBar from "./StorageBar";
 import UploadButton from "./UploadButton";
 
@@ -42,8 +43,40 @@ export default function FileBrowser() {
     [navigate, path],
   );
 
+  const shared = searchParams.get("view") === "shared";
+
+  const tabs = (
+    <div className="flex gap-2 text-sm">
+      {[
+        { label: "My files", href: "/files", on: !shared },
+        { label: "Shared", href: "/files?view=shared", on: shared },
+      ].map((t) => (
+        <button
+          key={t.label}
+          type="button"
+          onClick={() => router.push(t.href)}
+          className={`rounded border px-3 py-1 uppercase tracking-wide ${
+            t.on ? "border-accent text-accent" : "border-foreground/20"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (shared) {
+    return (
+      <div className="flex flex-col gap-4">
+        {tabs}
+        <SharedPanel />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {tabs}
       {user?.role === "admin" && (
         <p className="text-xs text-foreground/50">
           Admin view — browsing the entire storage root. Each account&apos;s files
