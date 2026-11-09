@@ -130,7 +130,7 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       return listDirectory(abs, rel);
     }
 
-    return sendFile(reply, abs, stats, flag(query.download));
+    return sendFile(request, reply, abs, stats, flag(query.download));
   }
 
   app.get("/", getOpts, handleGet);

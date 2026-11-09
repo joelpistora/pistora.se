@@ -76,7 +76,7 @@ async function serveShared(
   if (stats.isDirectory()) return listDirectory(abs, subRel);
   const q = request.query as { download?: string };
   const download = q.download !== undefined && q.download !== "0" && q.download !== "false";
-  return sendFile(reply, abs, stats, download);
+  return sendFile(request, reply, abs, stats, download);
 }
 
 const subOf = (request: FastifyRequest) =>

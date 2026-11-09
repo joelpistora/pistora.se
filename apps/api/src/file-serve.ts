@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import type { FastifyReply } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import type { DirListing, FileEntry } from "shared";
 import { contentTypeFor } from "./mime.js";
 
@@ -65,7 +65,38 @@ export async function listDirectory(abs: string, rel: string): Promise<DirListin
   return { path: normaliseRel(rel), entries };
 }
 
+/**
+ * Parse a single-range `Range: bytes=…` header against a file of `size` bytes.
+ * Returns `null` when the header is absent/unusable (serve the whole file — a
+ * multi-range request is deliberately not honoured, which RFC 9110 allows) or
+ * `"invalid"` when it's a well-formed range outside the file (→ 416).
+ */
+export function parseRange(
+  header: string | undefined,
+  size: number,
+): { start: number; end: number } | "invalid" | null {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === "" && m[2] === "")) return null;
+
+  let start: number;
+  let end: number;
+  if (m[1] === "") {
+    // Suffix range: the last N bytes.
+    const n = Number(m[2]);
+    if (n === 0) return "invalid";
+    start = Math.max(0, size - n);
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+    if (start >= size || start > end) return "invalid";
+  }
+  return { start, end };
+}
+
 export function sendFile(
+  request: FastifyRequest,
   reply: FastifyReply,
   abs: string,
   stats: fs.Stats,
@@ -74,17 +105,48 @@ export function sendFile(
   const filename = path.basename(abs);
   const disposition = forceDownload ? "attachment" : "inline";
   const asciiName = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  const lastModified = stats.mtime.toUTCString();
 
   reply
     .header("Content-Type", contentTypeFor(filename))
-    .header("Content-Length", stats.size)
-    .header("Last-Modified", stats.mtime.toUTCString())
-    .header("Accept-Ranges", "none")
+    .header("Last-Modified", lastModified)
+    .header("Accept-Ranges", "bytes")
     .header("Cache-Control", "private, max-age=0, must-revalidate")
     .header(
       "Content-Disposition",
       `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
     );
 
-  return reply.send(fs.createReadStream(abs));
+  // If-Range: only honour Range when the validator still matches.
+  const ifRange = request.headers["if-range"];
+  const range =
+    ifRange && ifRange !== lastModified
+      ? null
+      : parseRange(request.headers.range, stats.size);
+
+  if (range === "invalid") {
+    reply.removeHeader("Content-Disposition");
+    return reply
+      .code(416)
+      .type("application/json; charset=utf-8")
+      .header("Content-Range", `bytes */${stats.size}`)
+      .send({
+        error: {
+          code: "range_not_satisfiable",
+          message: "requested range is outside the file",
+        },
+      });
+  }
+
+  if (range) {
+    return reply
+      .code(206)
+      .header("Content-Range", `bytes ${range.start}-${range.end}/${stats.size}`)
+      .header("Content-Length", range.end - range.start + 1)
+      .send(fs.createReadStream(abs, { start: range.start, end: range.end }));
+  }
+
+  return reply
+    .header("Content-Length", stats.size)
+    .send(fs.createReadStream(abs));
 }

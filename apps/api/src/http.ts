@@ -20,6 +20,7 @@ const STATUS_SLUGS: Record<number, string> = {
   409: "conflict",
   413: "payload_too_large",
   415: "unsupported_media_type",
+  416: "range_not_satisfiable",
   422: "unprocessable_entity",
   429: "too_many_requests",
 };

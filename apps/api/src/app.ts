@@ -81,6 +81,8 @@ export async function buildApp(
     exposedHeaders: [
       "Content-Disposition",
       "Content-Length",
+      "Content-Range",
+      "Accept-Ranges",
       "Content-Type",
       "Last-Modified",
     ],
