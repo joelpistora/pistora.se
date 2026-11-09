@@ -42,7 +42,7 @@ jobs:
       - run: npm run build:api
       - name: Guard - apps/api/dist must not import "shared" at runtime
         run: |
-          if grep -rn 'from "shared"' apps/api/dist; then
+          if grep -rn --include='*.js' 'from "shared"' apps/api/dist; then
             echo "::error::apps/api/dist imports 'shared' at runtime (packages/shared is types-only)"
             exit 1
           fi

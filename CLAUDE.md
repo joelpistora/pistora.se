@@ -369,7 +369,7 @@ parallel.
   `apps/web/public/web.config`, shipped in every build.
 - `packages/shared` runtime-elision footgun: `apps/api` prod only works because
   the `shared` import is type-only. `verbatimModuleSyntax` guards it; a
-  `grep -rn 'from "shared"' apps/api/dist` after a build should stay empty.
+  `grep -rn --include='*.js' 'from "shared"' apps/api/dist` after a build should stay empty (`.d.ts` files legitimately contain `import type` from it).
 - Next.js `15.5.25`: `npm audit` shows 3 items (`sharp` libvips CVEs, bundled
   `postcss`) that only a major bump to Next 16 clears — do it deliberately.
   (`next lint` is also deprecated, removed in Next 16.)
