@@ -1,4 +1,16 @@
-import type { FastifyError, FastifyInstance } from "fastify";
+import type { FastifyError, FastifyInstance, FastifyRequest } from "fastify";
+
+/**
+ * The caller's IP. Behind the Cloudflare tunnel `req.ip` is always loopback, so
+ * with `config.trustProxy` we read `CF-Connecting-IP` instead.
+ */
+export function clientIp(app: FastifyInstance, req: FastifyRequest): string {
+  if (app.config.trustProxy) {
+    const cf = req.headers["cf-connecting-ip"];
+    if (typeof cf === "string" && cf.trim()) return cf.trim();
+  }
+  return req.ip;
+}
 
 /**
  * One JSON error shape for the whole API: `{ error: { code, message, details? } }`.

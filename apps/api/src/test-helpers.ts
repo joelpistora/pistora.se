@@ -44,6 +44,11 @@ export async function makeApp(
       cookieDomain: undefined,
       exposeInviteOtp: false,
       defaultQuotaBytes: 1024 * 1024 * 1024,
+      // Effectively off, so ordinary tests can log in repeatedly; rate-limit.test.ts overrides.
+      rateLimitMax: 1_000_000,
+      rateLimitAuthMax: 1_000_000,
+      rateLimitWindowMs: 60_000,
+      trustProxy: false,
       ...overrides,
     },
     { mailer, ...deps },
