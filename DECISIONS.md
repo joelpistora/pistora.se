@@ -597,3 +597,19 @@ could be touched. Both carried the same GPS EXIF block as the first incident
 `cats-landscape.jpg` / `cats-portrait.jpg`; the raw originals were deleted
 from the repo working tree right after (never committed, never should be —
 same reasoning as the single-photo version above).
+
+## GitHub Actions CI/CD (2026-11-09)
+
+One workflow (`.github/workflows/ci-deploy.yml`): `ci` job on PRs and pushes,
+`deploy` job (`needs: ci`) on push to `main` or manual dispatch. Chosen over
+separate `workflow_run` files for simplicity (no duplicate setup, no
+default-branch quirks). Deploy builds with `NEXT_PUBLIC_API_BASE` set
+explicitly, fails on any `localhost:3001` in the bundle or a missing
+`web.config`, then uploads via SamKirkland/FTP-Deploy-Action over explicit
+FTPS with `dangerous-clean-slate: false` (never deletes remote files; stale
+`_next` chunks may accumulate, clean manually if needed). Actions are pinned
+to commit SHAs, Dependabot bumps them. Manual runs default to dry-run; real
+manual deploys are refused off `main`. Secrets live in the `production`
+environment. The API is deliberately not deployed by the pipeline (home
+server, moving to a Raspberry Pi; a self-hosted runner or SSH deploy is a
+future option, see `infra/ci-cd.md`).

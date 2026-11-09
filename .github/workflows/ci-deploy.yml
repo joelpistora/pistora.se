@@ -1,0 +1,110 @@
+name: CI / Deploy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: build + verify + list what would be uploaded, but upload nothing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:api
+      - run: npm run build
+        env:
+          # CI build only; the deploy job builds again with the real value.
+          NEXT_PUBLIC_API_BASE: https://api.pistora.se
+      - run: npm run build:api
+      - name: Guard - apps/api/dist must not import "shared" at runtime
+        run: |
+          if grep -rn --include='*.js' 'from "shared"' apps/api/dist; then
+            echo "::error::apps/api/dist imports 'shared' at runtime (packages/shared is types-only)"
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy web to Hostek
+    needs: ci
+    # Push to main, or manual run. A real (non-dry) manual run is only allowed from main.
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.dry_run || github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Build web (static export)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE: https://api.pistora.se
+      - name: Verify build output
+        run: |
+          if grep -r "localhost:3001" apps/web/out/_next/; then
+            echo "::error::build contains localhost:3001 - NEXT_PUBLIC_API_BASE was not applied"
+            exit 1
+          fi
+          if ! grep -rq "api.pistora.se" apps/web/out/_next/; then
+            echo "::error::build does not reference api.pistora.se"
+            exit 1
+          fi
+          if [ ! -f apps/web/out/web.config ]; then
+            echo "::error::apps/web/out/web.config missing (should come from apps/web/public/)"
+            exit 1
+          fi
+      - name: Upload to Hostek over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65 # v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Explicit FTPS. If Hostek needs implicit FTPS (port 990), use "ftps-legacy".
+          protocol: ftps
+          port: ${{ vars.FTP_PORT || 21 }}
+          local-dir: apps/web/out/
+          server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
+          # Never delete remote files that are not in the build.
+          dangerous-clean-slate: false
+          dry-run: ${{ env.DRY_RUN == 'true' }}
+      - name: Smoke check
+        if: env.DRY_RUN != 'true'
+        run: |
+          sleep 5
+          curl -fsS --retry 3 --retry-delay 5 -o /dev/null https://pistora.se/
+          curl -fsS --retry 3 --retry-delay 5 https://api.pistora.se/health
