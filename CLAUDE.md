@@ -355,7 +355,15 @@ parallel.
   `localhost:3001`. A localhost build "works" only on the machine running the
   API — every other device sees "API unreachable". Verify before uploading:
   `grep -r localhost:3001 apps/web/out/_next/` must be empty.
-- Deploy flow (working): `npm run build --workspace web` → FTPS-upload the
+- Deploy flow (automated, GitHub Actions — `.github/workflows/ci-deploy.yml`):
+  PRs/pushes run CI (typecheck, lint, API tests, both builds, `shared` guard).
+  A push to `main` then deploys: build with `NEXT_PUBLIC_API_BASE=https://api.pistora.se`,
+  verify no `localhost:3001` in `out/_next/` and `web.config` present, FTPS-upload
+  `apps/web/out/` (no remote deletes), smoke-check pistora.se + api health.
+  Manual run: Actions → CI / Deploy → Run workflow (`dry_run` defaults on).
+  Needs `production`-environment secrets `FTP_HOST`/`FTP_USER`/`FTP_PASSWORD`
+  and optional variables `FTP_SERVER_DIR`/`FTP_PORT`. The API is not deployed
+  by the pipeline. Manual fallback: `npm run build --workspace web` → FTPS-upload the
   contents of `apps/web/out/` into `wwwroot/`. HTTP→HTTPS redirect and
   hard-loaded deep links (`/files`, `/login`, …) are handled by
   `apps/web/public/web.config`, shipped in every build.
