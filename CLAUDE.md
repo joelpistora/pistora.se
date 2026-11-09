@@ -60,9 +60,14 @@ forward to the workspaces.
   - `src/components/` — `FileBrowser` (owns path from `?path=`, usage-refresh
     key), `Breadcrumbs`, `FileTable` (Name/Size/Modified; folder row →
     navigate; every row has a `KebabMenu` (⋮) — Download (files), Rename
-    (inline), Properties, Delete), `KebabMenu` (shared fixed-position dropdown),
-    `FileProperties` (stat modal), `NewFolderButton` + `UploadButton` (inline,
-    into the current folder), `ApiStatus`, `HomeButton` (fixed top-left house
+    (inline), Move to… (`MovePicker` folder browser), Share (`ShareDialog`),
+    Properties, Delete; checkbox multi-select with bulk Move/Delete toolbar),
+    `UploadButton` (file + folder pickers) / `UploadPanel` / `hooks/useUploads`
+    (sequential queue, XHR progress, cancel; `lib/dropFiles` expands dropped
+    folders — drag-and-drop lives on `FileBrowser`), `SharedPanel` (the
+    "Shared" tab: with me / by me), `ShareViewer` + `PublicShare` (the
+    unauthenticated static `/s?token=…` page), `KebabMenu` (shared fixed-position dropdown),
+    `FileProperties` (stat modal), `NewFolderButton`, `ApiStatus`, `HomeButton` (fixed top-left house
     icon → `/`, hidden on `/`). Auth UI: `AuthProvider`, `RequireAuth`,
     `UserMenu`, `StorageBar`, `AdminUsers`, `LoginForm` (+ `RequestAccountLink`,
     the self-service "request an account" inline form), `ChangePasswordForm`.
@@ -127,7 +132,11 @@ forward to the workspaces.
     per-user isolation slots into when auth lands.
   - `src/routes/` — `health.ts` (`/health`, `/api/ping`), `files.ts`
     (`/api/files/*`: list / stat / download / upload / delete / `PATCH` rename-move),
-    `dirs.ts` (`/api/dirs/*`: `mkdir -p`), plus `auth.ts`, `admin.ts`, `usage.ts`.
+    `dirs.ts` (`/api/dirs/*`: `mkdir -p`), `shares.ts` (`/api/shares`,
+    `/api/public/<token>`), plus `auth.ts`, `admin.ts`, `usage.ts`.
+    `src/file-serve.ts` = listing + `sendFile` (Range/206/416) shared by the
+    owner, user-share and public-link download paths. `src/db/shares.ts` = DAO
+    for the `shares` table (schema v3).
     `src/http.ts` = error envelope
     `{ error: { code, message } }`. `src/mime.ts`. DTOs moved to
     `packages/shared` in Phase 2 (imported as `import type { ... } from "shared"`).
@@ -141,8 +150,17 @@ forward to the workspaces.
     file then atomically renamed; overwrites allowed. `DELETE` (`?recursive=1`
     for a non-empty dir). `PATCH /api/files/<path>` `{ to }` = rename/move —
     parent must exist, no overwrite (`409`), no quota re-check (same per-user
-    root). `POST /api/dirs/<path>` = `mkdir -p`. Range requests
-    not supported yet (`Accept-Ranges: none`). (Everything but `/health` +
+    root). `POST /api/dirs/<path>` = `mkdir -p`. Single `Range: bytes=…`
+    requests are honoured (206 / 416, `If-Range`); multi-range gets the full body.
+    **Sharing:** read-only grants on a file/folder by path — to another account
+    (`POST /api/shares {path, with}`) or an unguessable public link
+    (`{path, link:true}`), optional `expiresAt`, owner can list/revoke
+    (`GET/DELETE /api/shares`); recipients browse via
+    `GET /api/shares/:id/files/*`, links via unauthenticated
+    `GET /api/public/:token/files/*`. Model in DECISIONS.md. **Rate limiting:**
+    `@fastify/rate-limit`, in-memory per IP — 300/min globally, 10/min for
+    `POST /api/auth/*` (`RATE_LIMIT_*` env); `TRUST_PROXY=true` (prod) keys on
+    `CF-Connecting-IP`. (Everything but `/health` +
     `/api/auth/*` is now behind the session-cookie auth hook; `request.storage`
     is scoped to `users/<email>/` per caller — admins get the whole root.)
     `POST /api/auth/request-account` `{ email }` — public self-service
@@ -256,10 +274,12 @@ I/O ~10x slower. Access it from Windows via `\\wsl$\...` if needed.
       `storage.forUser(email)`, per-user quotas. Confirmed working in
       **production**: login, `/files` browsing, and a hard reload on a deep
       link all work with no redirect loop. Supersedes the earlier Cloudflare
-      Access plan — see Decision log. **Remaining:** sharing between accounts
-      (reuses the existing SQLite datastore).
-- [ ] **Phase 5 – Extras:** sync with iCloud/Google Drive, rate limiting,
-      Range-request support, polish.
+      Access plan — see Decision log. Sharing between accounts landed in Phase 5.
+- [~] **Phase 5 – Extras:** done (branch `claude/file-features-48d315`, not
+      yet merged/deployed): sharing between accounts + public links, Range
+      requests, rate limiting, file-browser polish (upload progress,
+      drag-and-drop incl. folders, multi-select + bulk move/delete, move
+      picker, mobile layout). **Left:** sync with iCloud/Google Drive.
 - [x] **Phase 6 v1 – joel.pistora.se placeholder: live.** Joel's personal
       site, on its own subdomain, separate from the storage product. v1 scope
       deliberately minimal — a placeholder page (`site/joel/index.html`):
@@ -343,11 +363,15 @@ When the WD Elements 5TB arrives: plug into Windows, point `STORAGE_ROOT` at
 parallel.
 
 **Known issues / follow-ups:**
-- File-browser UI has browse / upload / download / rename-move / delete /
-  new-folder / properties. Still missing: drag-drop, upload progress,
-  multi-select, a move-to-folder picker (the `PATCH` endpoint already takes an
-  arbitrary destination). Desktop-first (table scrolls on mobile, no dedicated
-  small-screen layout). Follow-up job.
+- File-browser UI is feature-complete for now (see Phase 5). Not done: UI
+  tests (only the API has tests; the new UI was typechecked/linted/built but
+  not exercised in a browser), overwrite warning on upload (the API silently
+  replaces), drag-rows-onto-folders moving, shares don't follow renames
+  (by path — see DECISIONS.md), no "save shared item to my files".
+- **Deploy notes for the sharing/rate-limit work:** schema v3 migrates
+  automatically on API start. Set `TRUST_PROXY=true` in the prod `apps/api/.env`
+  (otherwise every request looks like it's from the tunnel's loopback IP and
+  shares one rate-limit bucket). New static route `/s/` ships with the build.
 - `NEXT_PUBLIC_API_BASE` is inlined into the `apps/web` bundle **at build
   time**, and `next build` reads `apps/web/.env.local` too — so the deploy build
   only points at the right API if `.env.local` (or an explicit
@@ -365,7 +389,7 @@ parallel.
 - Next.js `15.5.25`: `npm audit` shows 3 items (`sharp` libvips CVEs, bundled
   `postcss`) that only a major bump to Next 16 clears — do it deliberately.
   (`next lint` is also deprecated, removed in Next 16.)
-- Storage API has no rate limiting and no Range-request support yet. Auth,
+- Rate limiting is in-memory (resets on API restart). Auth,
   per-user quotas, and per-user namespacing (`storage.forUser()`) all landed
   in Phase 4.
 - Multi-file uploads are not atomic as a batch — a failure partway leaves the
