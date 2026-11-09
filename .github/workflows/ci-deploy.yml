@@ -96,6 +96,10 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           # Explicit FTPS. If Hostek needs implicit FTPS (port 990), use "ftps-legacy".
           protocol: ftps
+          # "strict" verifies the server cert. Hostek's cert is for *.hostek.se, so a
+          # host like capitalpidesign.se fails; set repo variable FTP_SECURITY=loose
+          # until a matching *.hostek.se hostname is used.
+          security: ${{ vars.FTP_SECURITY || 'strict' }}
           port: ${{ vars.FTP_PORT || 21 }}
           local-dir: apps/web/out/
           server-dir: ${{ vars.FTP_SERVER_DIR || './' }}
