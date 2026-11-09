@@ -637,8 +637,8 @@ One workflow (`.github/workflows/ci-deploy.yml`): `ci` job on PRs and pushes,
 separate `workflow_run` files for simplicity (no duplicate setup, no
 default-branch quirks). Deploy builds with `NEXT_PUBLIC_API_BASE` set
 explicitly, fails on any `localhost:3001` in the bundle or a missing
-`web.config`, then uploads via SamKirkland/FTP-Deploy-Action over explicit
-FTPS with `dangerous-clean-slate: false` (never deletes remote files; stale
+`web.config`, then uploads via lftp (first tried SamKirkland/FTP-Deploy-Action; its TLS data connection was reset by Hostek IIS FTP) over explicit
+FTPS with `mirror -R` and no `--delete` (never deletes remote files; stale
 `_next` chunks may accumulate, clean manually if needed). Actions are pinned
 to commit SHAs, Dependabot bumps them. Manual runs default to dry-run; real
 manual deploys are refused off `main`. Secrets live in the `production`

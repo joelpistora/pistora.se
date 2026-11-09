@@ -11,7 +11,7 @@ Workflow: `.github/workflows/ci-deploy.yml` (+ `.github/dependabot.yml`).
 - Never commit credentials.
 
 ## FTPS mode
-Workflow uses explicit FTPS (`protocol: ftps`, port 21). If connection fails,
+Workflow uses lftp with explicit FTPS (port 21). SamKirkland/FTP-Deploy-Action was tried first but its data-connection TLS handshake was reset by Hostek's IIS FTP. If connection fails,
 Hostek may need implicit FTPS: change `protocol` to `ftps-legacy` and set
 `FTP_PORT=990`.
 
