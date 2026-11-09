@@ -1,15 +1,18 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useDirectory } from "@/hooks/useDirectory";
+import { useUploads } from "@/hooks/useUploads";
+import { filesFromDrop } from "@/lib/dropFiles";
 import Breadcrumbs from "./Breadcrumbs";
 import FileTable from "./FileTable";
 import NewFolderButton from "./NewFolderButton";
 import SharedPanel from "./SharedPanel";
 import StorageBar from "./StorageBar";
 import UploadButton from "./UploadButton";
+import UploadPanel from "./UploadPanel";
 
 /** Normalise a path: no leading/trailing slashes, no empty segments. */
 function clean(path: string): string {
@@ -29,6 +32,10 @@ export default function FileBrowser() {
     reload();
     setUsageKey((k) => k + 1);
   }, [reload]);
+
+  const uploads = useUploads(afterChange);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
 
   const navigate = useCallback(
     (next: string) => {
@@ -75,7 +82,36 @@ export default function FileBrowser() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="relative flex flex-col gap-4"
+      onDragEnter={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current++;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        void filesFromDrop(e.dataTransfer).then((files) => {
+          if (files.length) uploads.enqueue(path, files);
+        });
+      }}
+    >
+      {dragging && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded border-2 border-dashed border-accent bg-background/80 text-lg uppercase tracking-wide text-accent">
+          Drop to upload to /{path}
+        </div>
+      )}
       {tabs}
       {user?.role === "admin" && (
         <p className="text-xs text-foreground/50">
@@ -90,9 +126,15 @@ export default function FileBrowser() {
         <Breadcrumbs path={path} onNavigate={navigate} />
         <div className="flex flex-wrap items-center gap-2">
           <NewFolderButton path={path} onCreated={afterChange} />
-          <UploadButton path={path} onUploaded={afterChange} />
+          <UploadButton onPick={(files) => uploads.enqueue(path, files)} />
         </div>
       </div>
+
+      <UploadPanel
+        items={uploads.items}
+        onCancel={uploads.cancel}
+        onClear={uploads.clearFinished}
+      />
 
       {loading && <p className="text-sm text-foreground/60">Loading…</p>}
 

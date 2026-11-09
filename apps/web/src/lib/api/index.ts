@@ -41,6 +41,7 @@ export {
   resetOtp,
   deleteUser,
 } from "./auth";
+export { uploadFileWithProgress } from "./upload";
 export {
   createShare,
   listShares,

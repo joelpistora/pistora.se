@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ApiError,
   deleteEntry,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { formatDate, formatSize } from "@/lib/format";
 import FileProperties from "./FileProperties";
+import MovePicker from "./MovePicker";
 import ShareDialog from "./ShareDialog";
 import KebabMenu, { type MenuAction } from "./KebabMenu";
 
@@ -96,6 +97,59 @@ export default function FileTable({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [propsFor, setPropsFor] = useState<FileEntry | null>(null);
   const [shareFor, setShareFor] = useState<FileEntry | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** Names being moved via the picker (one from the kebab, or the whole selection). */
+  const [moving, setMoving] = useState<string[] | null>(null);
+
+  // A new folder / refreshed listing drops selections of rows that no longer exist.
+  useEffect(() => {
+    setSelected((sel) => {
+      const names = new Set(entries.map((e) => e.name));
+      const next = new Set([...sel].filter((n) => names.has(n)));
+      return next.size === sel.size ? sel : next;
+    });
+  }, [entries]);
+  useEffect(() => setSelected(new Set()), [path]);
+
+  function toggle(name: string) {
+    setSelected((sel) => {
+      const next = new Set(sel);
+      if (!next.delete(name)) next.add(name);
+      return next;
+    });
+  }
+  const allSelected = entries.length > 0 && selected.size === entries.length;
+
+  /** Run an action over several names, then report any that failed. */
+  async function bulk(names: string[], fn: (name: string) => Promise<unknown>) {
+    setError(null);
+    const failed: string[] = [];
+    for (const name of names) {
+      setBusy(name);
+      try {
+        await fn(name);
+      } catch (err) {
+        failed.push(`${name} (${errText(err)})`);
+      }
+    }
+    setBusy(null);
+    setSelected(new Set());
+    onMutated();
+    if (failed.length) setError(`Failed: ${failed.join(", ")}`);
+  }
+
+  async function removeSelected() {
+    const names = [...selected];
+    if (!window.confirm(`Delete ${names.length} item${names.length === 1 ? "" : "s"}? Folders are deleted with everything inside. This can't be undone.`)) return;
+    const dirs = new Set(entries.filter((e) => e.type === "directory").map((e) => e.name));
+    await bulk(names, (n) => deleteEntry(join(path, n), { recursive: dirs.has(n) }));
+  }
+
+  async function moveTo(dest: string) {
+    const names = moving ?? [];
+    setMoving(null);
+    await bulk(names, (n) => moveEntry(join(path, n), join(dest, n)));
+  }
 
   async function run(name: string, fn: () => Promise<unknown>) {
     setBusy(name);
@@ -156,13 +210,38 @@ export default function FileTable({
     <div className="flex flex-col gap-2">
       {error && <p className="text-sm text-red-600">{error}</p>}
 
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+          <span>{selected.size} selected</span>
+          <button type="button" onClick={() => setMoving([...selected])} className="uppercase tracking-wide text-accent hover:underline">
+            Move
+          </button>
+          <button type="button" onClick={() => void removeSelected()} className="uppercase tracking-wide text-red-600 hover:underline">
+            Delete
+          </button>
+          <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-foreground/60 hover:text-foreground">
+            Clear
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[32rem] border-collapse text-sm">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-foreground/15 text-left text-foreground/60">
+              <th className="w-8 py-2 pr-2">
+                <input
+                  type="checkbox"
+                  aria-label="Select all"
+                  checked={allSelected}
+                  onChange={() =>
+                    setSelected(allSelected ? new Set() : new Set(entries.map((e) => e.name)))
+                  }
+                />
+              </th>
               <th className="py-2 pr-4 font-medium">Name</th>
-              <th className="py-2 pr-4 font-medium">Size</th>
-              <th className="py-2 pr-4 font-medium">Modified</th>
+              <th className="hidden py-2 pr-4 font-medium sm:table-cell">Size</th>
+              <th className="hidden py-2 pr-4 font-medium sm:table-cell">Modified</th>
               <th className="w-10 py-2 font-medium" aria-label="Actions" />
             </tr>
           </thead>
@@ -183,6 +262,7 @@ export default function FileTable({
                       },
                     ]),
                 { label: "Rename", onClick: () => setRenaming(entry.name) },
+                { label: "Move to…", onClick: () => setMoving([entry.name]) },
                 { label: "Share", onClick: () => setShareFor(entry) },
                 { label: "Properties", onClick: () => setPropsFor(entry) },
                 {
@@ -202,7 +282,15 @@ export default function FileTable({
                     isDir && !isRenaming ? "cursor-pointer hover:bg-foreground/5" : ""
                   } ${rowBusy ? "opacity-50" : ""}`}
                 >
-                  <td className="py-2 pr-4">
+                  <td className="w-8 py-2 pr-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${entry.name}`}
+                      checked={selected.has(entry.name)}
+                      onChange={() => toggle(entry.name)}
+                    />
+                  </td>
+                  <td className="break-all py-2 pr-4">
                     <span className="mr-2 text-foreground/50" aria-hidden>
                       {isDir ? "📁" : "📄"}
                     </span>
@@ -215,11 +303,14 @@ export default function FileTable({
                     ) : (
                       entry.name
                     )}
+                    <span className="block text-xs text-foreground/60 sm:hidden">
+                      {isDir ? "Folder" : formatSize(entry.size)} · {formatDate(entry.modifiedAt)}
+                    </span>
                   </td>
-                  <td className="py-2 pr-4 text-foreground/70">
+                  <td className="hidden py-2 pr-4 text-foreground/70 sm:table-cell">
                     {isDir ? "—" : formatSize(entry.size)}
                   </td>
-                  <td className="py-2 pr-4 text-foreground/70">
+                  <td className="hidden py-2 pr-4 text-foreground/70 sm:table-cell">
                     {formatDate(entry.modifiedAt)}
                   </td>
                   <td className="py-2 text-right">
@@ -235,6 +326,16 @@ export default function FileTable({
           </tbody>
         </table>
       </div>
+
+      {moving && (
+        <MovePicker
+          title={moving.length === 1 ? `Move “${moving[0]}” to…` : `Move ${moving.length} items to…`}
+          moving={moving}
+          from={path}
+          onPick={(dest) => void moveTo(dest)}
+          onClose={() => setMoving(null)}
+        />
+      )}
 
       {shareFor && (
         <ShareDialog
